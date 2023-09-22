@@ -1,4 +1,4 @@
-from Bcorner import hist2d
+from .Bcorner import hist2d
 
 
 def plot_contour(x,
