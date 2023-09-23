@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from .plot_contour import plot_contour
+from .plot_trend import plot_trend
 
 
 class Dataset:
@@ -10,6 +11,39 @@ class Dataset:
         self.data = data
         self.names = names
         self.labels = labels
+
+    def _trend(self, x_name, y_name, ax, **kwargs):
+
+        # TODO: scatter, etc.
+
+        names_list = list(self.names)
+        x_idx = names_list.index(x_name)
+        y_idx = names_list.index(y_name)
+        plot_trend(self.data[:, x_idx], self.data[:, y_idx], ax=ax, **kwargs)
+        ax.set_xlabel(x_name)
+        ax.set_ylabel(y_name)
+
+    def trend(self,
+                x_name,
+                y_names,
+                axes=None,
+                subplots_kwargs=None,
+                **kwargs):
+
+        # TODO: kwargs_each to use different kwargs for each plot
+
+        # if y_names is a string
+        if isinstance(y_names, str):
+            y_names = [y_names]
+
+        if subplots_kwargs is None:
+            subplots_kwargs = {}
+
+        _, axes = auto_subplots(len(y_names), **subplots_kwargs)
+
+        for y_name, ax in zip(y_names, axes.flatten()):
+            self._trend(x_name, y_name, ax, **kwargs)
+
 
     def _contour(self, x_name, y_name, ax, **kwargs):
 
