@@ -4,6 +4,7 @@ from .plot_contour import plot_contour
 
 
 class Dataset:
+    # TODO: add data
 
     def __init__(self, data, names, labels) -> None:
         self.data = data
@@ -29,6 +30,7 @@ class Dataset:
                 **kwargs):
 
         # TODO: kwargs_each to use different kwargs for each plot
+        # TODO: contour plot bin by the third variable
 
         # if y_names is a string
         if isinstance(y_names, str):
