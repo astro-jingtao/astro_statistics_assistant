@@ -30,6 +30,8 @@ def corner(xs,
            weights=None,
            color="k",
            hist_bin_factor=1,
+           kde_smooth=False,
+           kde_smooth1d=False,
            smooth=None,
            smooth1d=None,
            labels=None,
@@ -52,6 +54,7 @@ def corner(xs,
            plot_add_1d=None,
            dpi=None,
            **hist2d_kwargs):
+    # TODO: 1d KDE smooth
     """
     Make a *sick* corner plot showing the projections of a data set in a
     multi-dimensional space. kwargs are passed to hist2d() or used for
@@ -449,6 +452,7 @@ def corner(xs,
                    ax=ax,
                    range=[range[j], range[i]],
                    weights=weights,
+                   kde_smooth=kde_smooth,
                    color=color,
                    smooth=smooth,
                    bins=[bins[j], bins[i]],
