@@ -140,3 +140,8 @@ def plot_trend(x,y,bins=20,ytype='median',
             ax.errorbar(loads[:,0],loads[:,1],yerr=(loads[:,2]-loads[:,3])/2.0,**plot_scatter_kwargs)
         if(fkind=="fbetween"):
             ax.fill_between(loads[:,0],loads[:,3],loads[:,2],**plot_scatter_kwargs)
+
+
+
+
+

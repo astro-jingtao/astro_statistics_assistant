@@ -38,8 +38,9 @@ class Dataset:
 
         if subplots_kwargs is None:
             subplots_kwargs = {}
-
-        _, axes = auto_subplots(len(y_names), **subplots_kwargs)
+       
+        if axes is None:
+            _, axes = auto_subplots(len(y_names), **subplots_kwargs)
 
         for y_name, ax in zip(y_names, axes.flatten()):
             self._trend(x_name, y_name, ax, **kwargs)
@@ -73,7 +74,8 @@ class Dataset:
         if subplots_kwargs is None:
             subplots_kwargs = {}
 
-        _, axes = auto_subplots(len(y_names), **subplots_kwargs)
+        if axes is None:
+            _, axes = auto_subplots(len(y_names), **subplots_kwargs)
 
         for y_name, ax in zip(y_names, axes.flatten()):
             self._contour(x_name, y_name, ax, **kwargs)
