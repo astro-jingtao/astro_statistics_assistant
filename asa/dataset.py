@@ -15,6 +15,22 @@ class Dataset:
         self.labels = np.asarray(labels)
         self.method_mapping = {'trend': self._trend, 'contour': self._contour}
 
+    def __repr__(self) -> str:
+        return self.__str__()
+
+    def __str__(self) -> str:
+        summary_string = "" + 'Dataset summary:\n'
+        summary_string += f'  Data shape: {str(self.data.shape)}' + '\n'
+        summary_string += f'  Names: {str(self.names)}' + '\n'
+        summary_string += f'  Labels: {str(self.labels)}' + '\n'
+        return summary_string
+
+    def summary(self) -> None:
+
+        # TODO: math summary?
+
+        print(self.__str__())
+
     def add_col(self, new_cols, new_names, new_labels) -> None:
 
         new_cols = np.asarray(new_cols)
