@@ -82,7 +82,7 @@ class Dataset:
 
     def _trend(self, x_name, y_name, ax, **kwargs):
 
-        # TODO: scatter, etc.
+        # TODO: label, etc.
 
         names_list = list(self.names)
         x_idx = names_list.index(x_name)
@@ -90,6 +90,7 @@ class Dataset:
         plot_trend(self.data[:, x_idx], self.data[:, y_idx], ax=ax, **kwargs)
         ax.set_xlabel(x_name)
         ax.set_ylabel(y_name)
+        ax.legend()
 
     def trend(self,
               x_name,
@@ -103,7 +104,7 @@ class Dataset:
 
     def _contour(self, x_name, y_name, ax, **kwargs):
 
-        # TODO: labels, tiles, ranges, etc.
+        # TODO: labels, titles, ranges, etc.
 
         names_list = list(self.names)
         x_idx = names_list.index(x_name)
