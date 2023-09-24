@@ -5,12 +5,25 @@ from .plot_trend import plot_trend
 
 
 class Dataset:
-    # TODO: add data
-
     def __init__(self, data, names, labels) -> None:
-        self.data = data
-        self.names = names
-        self.labels = labels
+        self.data = np.asarray(data)
+        self.names = np.asarray(names)
+        self.labels = np.asarray(labels)
+
+    def add_col(self, new_cols, new_names, new_labels) -> None:
+
+        new_cols = np.asarray(new_cols)
+        if new_cols.ndim == 1:
+            new_cols = new_cols[:, np.newaxis]
+        new_names = string_to_list(new_names)
+        new_labels = string_to_list(new_labels)
+
+        self.data = np.hstack((self.data, new_cols))
+        self.names = np.asarray(list(self.names) + list(new_names))
+        self.labels = np.asarray(list(self.labels) + list(new_labels))
+
+    def add_row(self, new_rows) -> None:
+        self.data = np.vstack((self.data, new_rows))
 
     def _trend(self, x_name, y_name, ax, **kwargs):
 
@@ -33,8 +46,7 @@ class Dataset:
         # TODO: kwargs_each to use different kwargs for each plot
 
         # if y_names is a string
-        if isinstance(y_names, str):
-            y_names = [y_names]
+        y_names = string_to_list(y_names)
 
         if subplots_kwargs is None:
             subplots_kwargs = {}
@@ -68,8 +80,7 @@ class Dataset:
         # TODO: contour plot bin by the third variable
 
         # if y_names is a string
-        if isinstance(y_names, str):
-            y_names = [y_names]
+        y_names = string_to_list(y_names)
 
         if subplots_kwargs is None:
             subplots_kwargs = {}
@@ -93,3 +104,6 @@ def auto_subplots(n, figshape=None, figsize=None, dpi=400):
     if n == 1:
         axes = np.array([axes])
     return fig, axes
+
+def string_to_list(string):
+    return [string] if isinstance(string, str) else string
