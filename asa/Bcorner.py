@@ -12,6 +12,8 @@ from matplotlib.ticker import MaxNLocator, NullLocator
 from matplotlib.colors import LinearSegmentedColormap, colorConverter
 from matplotlib.ticker import ScalarFormatter
 
+from .utilize import flag_bad
+
 try:
     from scipy.ndimage import gaussian_filter
 except ImportError:
@@ -158,7 +160,7 @@ def corner(xs, bins=20, range=None, weights=None, color="k", hist_bin_factor=1,
         xs = xs.T
     assert xs.shape[0] <= xs.shape[1], "I don't believe that you want more " \
                                        "dimensions than samples!"
-    xs_good = ~(np.isnan(xs) + np.isinf(xs))
+    xs_good = ~flag_bad(xs)
 
 
     # Parse the weight array.
@@ -490,9 +492,8 @@ def quantile(x, q, weights=None):
         between ``x`` and ``weights``.
 
     """
-    x_bad = np.isnan(x) & np.isinf(x)
-    x[~x_bad]
-
+    x_bad = flag_bad(x)
+    x = x[~x_bad]
 
     x = np.atleast_1d(x)
     q = np.atleast_1d(q)
@@ -585,7 +586,7 @@ def hist2d(x, y, bins=20, range='auto', auto_p=None, weights=None, levels=None, 
         adding the density colormap.
 
     """
-    bad = np.isnan(x) + np.isinf(x) + np.isnan(y) + np.isinf(y)
+    bad = flag_bad(x) | flag_bad(y)
     x = x[~bad]
     y = y[~bad]
 
