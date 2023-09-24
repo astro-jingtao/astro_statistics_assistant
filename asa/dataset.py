@@ -15,6 +15,37 @@ class Dataset:
         self.labels = np.asarray(labels)
         self.method_mapping = {'trend': self._trend, 'contour': self._contour}
 
+    def __getitem__(self, key) -> np.ndarray:
+        '''
+        Get the data by index or name.
+        '''
+
+        if isinstance(key, tuple):
+            if len(key) != 2:
+                raise ValueError('key should be a tuple of length 2')
+            if is_string_or_list_of_string(key[0]):
+                raise ValueError('key[0] can not be string or list of string')
+            if is_string_or_list_of_string(key[1]):
+                k1_idx, k2 = key
+                names_list = list(self.names)
+                if isinstance(k2, str):
+                    k2_idx = names_list.index(k2)
+                else:
+                    k2_idx = [names_list.index(this_k2) for this_k2 in k2]
+            else:
+                k1_idx, k2_idx = key
+            return self.data[k1_idx, k2_idx]
+        elif is_string_or_list_of_string(key):
+            names_list = list(self.names)
+            if isinstance(key, str):
+                key_idx = names_list.index(key)
+            else:
+                key_idx = [names_list.index(this_k) for this_k in key]
+            return self.data[:, key_idx]
+        else:
+            return self.data[key]
+
+
     def __repr__(self) -> str:
         return self.__str__()
 
@@ -140,3 +171,10 @@ def auto_subplots(n, figshape=None, figsize=None, dpi=400):
 
 def string_to_list(string):
     return [string] if isinstance(string, str) else string
+
+def is_string_or_list_of_string(x):
+    return (
+        isinstance(x, str)
+        or isinstance(x, list)
+        and all(isinstance(y, str) for y in x)
+    )
