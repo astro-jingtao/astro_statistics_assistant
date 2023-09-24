@@ -587,7 +587,6 @@ def hist2d(x,
            data_kwargs=None,
            pcolor_kwargs=None,
            **kwargs):
-    # TODO: KDE smooth
     """
     Plot a 2-D histogram of samples.
 
