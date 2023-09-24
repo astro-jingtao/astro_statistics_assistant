@@ -5,10 +5,15 @@ from .plot_trend import plot_trend
 
 
 class Dataset:
+
     def __init__(self, data, names, labels) -> None:
+
+        # TODO: ranges
+
         self.data = np.asarray(data)
         self.names = np.asarray(names)
         self.labels = np.asarray(labels)
+        self.method_mapping = {'trend': self._trend, 'contour': self._contour}
 
     def add_col(self, new_cols, new_names, new_labels) -> None:
 
@@ -25,6 +30,28 @@ class Dataset:
     def add_row(self, new_rows) -> None:
         self.data = np.vstack((self.data, new_rows))
 
+    def plot_xygeneral(self,
+                       kind,
+                       x_name,
+                       y_names,
+                       axes=None,
+                       subplots_kwargs=None,
+                       **kwargs):
+
+        # TODO: kwargs_each to use different kwargs for each plot
+        # TODO: contour plot bin by the third variable
+
+        y_names = string_to_list(y_names)
+
+        if subplots_kwargs is None:
+            subplots_kwargs = {}
+
+        if axes is None:
+            _, axes = auto_subplots(len(y_names), **subplots_kwargs)
+
+        for y_name, ax in zip(y_names, axes.flatten()):
+            self.method_mapping[kind](x_name, y_name, ax, **kwargs)
+
     def _trend(self, x_name, y_name, ax, **kwargs):
 
         # TODO: scatter, etc.
@@ -37,26 +64,14 @@ class Dataset:
         ax.set_ylabel(y_name)
 
     def trend(self,
-                x_name,
-                y_names,
-                axes=None,
-                subplots_kwargs=None,
-                **kwargs):
+              x_name,
+              y_names,
+              axes=None,
+              subplots_kwargs=None,
+              **kwargs):
 
-        # TODO: kwargs_each to use different kwargs for each plot
-
-        # if y_names is a string
-        y_names = string_to_list(y_names)
-
-        if subplots_kwargs is None:
-            subplots_kwargs = {}
-       
-        if axes is None:
-            _, axes = auto_subplots(len(y_names), **subplots_kwargs)
-
-        for y_name, ax in zip(y_names, axes.flatten()):
-            self._trend(x_name, y_name, ax, **kwargs)
-
+        self.plot_xygeneral('trend', x_name, y_names, axes, subplots_kwargs,
+                            **kwargs)
 
     def _contour(self, x_name, y_name, ax, **kwargs):
 
@@ -76,20 +91,8 @@ class Dataset:
                 subplots_kwargs=None,
                 **kwargs):
 
-        # TODO: kwargs_each to use different kwargs for each plot
-        # TODO: contour plot bin by the third variable
-
-        # if y_names is a string
-        y_names = string_to_list(y_names)
-
-        if subplots_kwargs is None:
-            subplots_kwargs = {}
-
-        if axes is None:
-            _, axes = auto_subplots(len(y_names), **subplots_kwargs)
-
-        for y_name, ax in zip(y_names, axes.flatten()):
-            self._contour(x_name, y_name, ax, **kwargs)
+        self.plot_xygeneral('contour', x_name, y_names, axes, subplots_kwargs,
+                            **kwargs)
 
 
 def auto_subplots(n, figshape=None, figsize=None, dpi=400):
@@ -104,6 +107,7 @@ def auto_subplots(n, figshape=None, figsize=None, dpi=400):
     if n == 1:
         axes = np.array([axes])
     return fig, axes
+
 
 def string_to_list(string):
     return [string] if isinstance(string, str) else string
