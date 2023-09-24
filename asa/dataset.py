@@ -38,7 +38,6 @@ class Dataset:
                        subplots_kwargs=None,
                        **kwargs):
 
-        # TODO: kwargs_each to use different kwargs for each plot
         # TODO: contour plot bin by the third variable
 
         y_names = string_to_list(y_names)
@@ -49,8 +48,21 @@ class Dataset:
         if axes is None:
             _, axes = auto_subplots(len(y_names), **subplots_kwargs)
 
-        for y_name, ax in zip(y_names, axes.flatten()):
-            self.method_mapping[kind](x_name, y_name, ax, **kwargs)
+        same_key = {}
+        each_key = {}
+        for key in kwargs:
+            # is end of
+            if key.endswith('_each'):
+                key_single = key[:-5]
+                each_key[key_single] = kwargs[key]
+            else:
+                same_key[key] = kwargs[key]
+
+        for i, ax in enumerate(axes.flatten()):
+            this_kwargs = same_key.copy()
+            for key in each_key:
+                this_kwargs[key] = each_key[key][i]
+            self.method_mapping[kind](x_name, y_names[i], ax, **this_kwargs)
 
     def _trend(self, x_name, y_name, ax, **kwargs):
 
