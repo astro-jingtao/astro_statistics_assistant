@@ -128,7 +128,7 @@ class Dataset:
                        **kwargs):
 
         # TODO: contour plot bin by the third variable
-        # TODO: use subsample
+        # TODO: data transformation
 
         y_names = string_to_list(y_names)
 
