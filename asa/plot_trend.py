@@ -107,6 +107,8 @@ def plot_trend(x,y,bins=20,ytype='median',
                 elif(ytype=='mean'): yvalue = np.mean(ys)
                 else: yvalue = np.percentile(ys,float(ytype))
                 if(ifscatter):
+                    if(len(ys)<=3):
+                        raise ValueError("The length(%2i) of y is so short"%len(ys))
                     upvalue = np.percentile(ys,uplim)
                     btvalue = np.percentile(ys,bottomlim)
                     loads.append([np.median(xs),yvalue,upvalue,btvalue])
@@ -119,6 +121,8 @@ def plot_trend(x,y,bins=20,ytype='median',
                     else: yvalue = np.percentile(ys,float(ytype))
                         
                     if(ifscatter):
+                        if(len(ys)<=3):
+                            raise ValueError("The length(%2i) of y is so short"%len(ys))
                         upvalue = np.percentile(ys,uplim)
                         btvalue = np.percentile(ys,bottomlim)
                         loads.append([np.median(xs),yvalue,upvalue,btvalue])
