@@ -10,3 +10,14 @@ def flag_bad(x):
     of x is NaN or +/-inf.
     """
     return np.isnan(x) | np.isinf(x)
+
+
+def string_to_list(string):
+    return [string] if isinstance(string, str) else string
+
+def is_string_or_list_of_string(x):
+    return (
+        isinstance(x, str)
+        or isinstance(x, list)
+        and all(isinstance(y, str) for y in x)
+    )

@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from .plot_contour import plot_contour
 from .plot_trend import plot_trend
+from .utilize import string_to_list, is_string_or_list_of_string
 
 
 class Dataset:
@@ -45,7 +46,6 @@ class Dataset:
         else:
             return self.data[key]
 
-
     def __repr__(self) -> str:
         return self.__str__()
 
@@ -77,15 +77,58 @@ class Dataset:
     def add_row(self, new_rows) -> None:
         self.data = np.vstack((self.data, new_rows))
 
+    def _trend(self, x_name, y_name, ax, subsample=None, **kwargs):
+
+        # TODO: label, etc.
+
+        names_list = list(self.names)
+        x_idx = names_list.index(x_name)
+        y_idx = names_list.index(y_name)
+        if subsample is None:
+            plot_trend(self.data[:, x_idx],
+                       self.data[:, y_idx],
+                       ax=ax,
+                       **kwargs)
+        else:
+            plot_trend(self.data[subsample, x_idx],
+                       self.data[subsample, y_idx],
+                       ax=ax,
+                       **kwargs)
+        ax.set_xlabel(x_name)
+        ax.set_ylabel(y_name)
+        ax.legend()
+
+    def _contour(self, x_name, y_name, ax, subsample=None, **kwargs):
+
+        # TODO: labels, titles, ranges, etc.
+
+        names_list = list(self.names)
+        x_idx = names_list.index(x_name)
+        y_idx = names_list.index(y_name)
+        if subsample is None:
+            plot_contour(self.data[:, x_idx],
+                         self.data[:, y_idx],
+                         ax=ax,
+                         **kwargs)
+        else:
+            plot_contour(self.data[subsample, x_idx],
+                         self.data[subsample, y_idx],
+                         ax=ax,
+                         **kwargs)
+        ax.set_xlabel(x_name)
+        ax.set_ylabel(y_name)
+
     def plot_xygeneral(self,
                        kind,
                        x_name,
                        y_names,
+                       subsample=None,
                        axes=None,
                        subplots_kwargs=None,
                        **kwargs):
 
         # TODO: contour plot bin by the third variable
+        # TODO: use subsample
 
         y_names = string_to_list(y_names)
 
@@ -109,49 +152,42 @@ class Dataset:
             this_kwargs = same_key.copy()
             for key in each_key:
                 this_kwargs[key] = each_key[key][i]
-            self.method_mapping[kind](x_name, y_names[i], ax, **this_kwargs)
-
-    def _trend(self, x_name, y_name, ax, **kwargs):
-
-        # TODO: label, etc.
-
-        names_list = list(self.names)
-        x_idx = names_list.index(x_name)
-        y_idx = names_list.index(y_name)
-        plot_trend(self.data[:, x_idx], self.data[:, y_idx], ax=ax, **kwargs)
-        ax.set_xlabel(x_name)
-        ax.set_ylabel(y_name)
-        ax.legend()
+            self.method_mapping[kind](x_name,
+                                      y_names[i],
+                                      ax,
+                                      subsample=subsample,
+                                      **this_kwargs)
 
     def trend(self,
               x_name,
               y_names,
+              subsample=None,
               axes=None,
               subplots_kwargs=None,
               **kwargs):
 
-        self.plot_xygeneral('trend', x_name, y_names, axes, subplots_kwargs,
+        self.plot_xygeneral('trend',
+                            x_name,
+                            y_names,
+                            subsample=subsample,
+                            axes=axes,
+                            subplots_kwargs=subplots_kwargs,
                             **kwargs)
-
-    def _contour(self, x_name, y_name, ax, **kwargs):
-
-        # TODO: labels, titles, ranges, etc.
-
-        names_list = list(self.names)
-        x_idx = names_list.index(x_name)
-        y_idx = names_list.index(y_name)
-        plot_contour(self.data[:, x_idx], self.data[:, y_idx], ax=ax, **kwargs)
-        ax.set_xlabel(x_name)
-        ax.set_ylabel(y_name)
 
     def contour(self,
                 x_name,
                 y_names,
+                subsample=None,
                 axes=None,
                 subplots_kwargs=None,
                 **kwargs):
 
-        self.plot_xygeneral('contour', x_name, y_names, axes, subplots_kwargs,
+        self.plot_xygeneral('contour',
+                            x_name,
+                            y_names,
+                            subsample=subsample,
+                            axes=axes,
+                            subplots_kwargs=subplots_kwargs,
                             **kwargs)
 
 
@@ -167,14 +203,3 @@ def auto_subplots(n, figshape=None, figsize=None, dpi=400):
     if n == 1:
         axes = np.array([axes])
     return fig, axes
-
-
-def string_to_list(string):
-    return [string] if isinstance(string, str) else string
-
-def is_string_or_list_of_string(x):
-    return (
-        isinstance(x, str)
-        or isinstance(x, list)
-        and all(isinstance(y, str) for y in x)
-    )
