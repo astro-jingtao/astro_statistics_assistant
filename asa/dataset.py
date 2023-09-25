@@ -1,3 +1,4 @@
+from typing import Union, List
 import numpy as np
 import matplotlib.pyplot as plt
 from .plot_contour import plot_contour
@@ -30,7 +31,7 @@ class Dataset:
                 k1_idx, k2 = key
                 names_list = list(self.names)
                 if isinstance(k2, str):
-                    k2_idx = names_list.index(k2)
+                    k2_idx: Union[int, List[int]] = names_list.index(k2)
                 else:
                     k2_idx = [names_list.index(this_k2) for this_k2 in k2]
             else:
@@ -39,7 +40,7 @@ class Dataset:
         elif is_string_or_list_of_string(key):
             names_list = list(self.names)
             if isinstance(key, str):
-                key_idx = names_list.index(key)
+                key_idx: Union[int, List[int]] = names_list.index(key)
             else:
                 key_idx = [names_list.index(this_k) for this_k in key]
             return self.data[:, key_idx]
@@ -84,7 +85,7 @@ class Dataset:
         if is_string_or_list_of_string(key):
             names_list = list(self.names)
             if isinstance(key, str):
-                key_idx = names_list.index(key)
+                key_idx: Union[int, List[int]] = names_list.index(key)
             else:
                 key_idx = [names_list.index(this_k) for this_k in key]
             self.data = np.delete(self.data, key_idx, axis=1)
