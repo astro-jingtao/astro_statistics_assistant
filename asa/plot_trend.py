@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from .utilize import flag_bad
+from .utils import flag_bad
 
 
 def plot_trend(x,
