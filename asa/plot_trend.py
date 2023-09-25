@@ -54,6 +54,10 @@ def plot_trend(x,
 
     prop_kwargs: dict (to be added)
         The extra property used to constrain the x, y, data
+        props : array_like[nsamples,]                                     
+            The samples with size same as x/y.                             
+        pmax : the maximum value of props
+        pmin : the minimum value of props
 
     scatter_kwargs: dict (to be added)
         ifscatter: whether to plot scatter
@@ -63,7 +67,6 @@ def plot_trend(x,
         plot_scatter_kwargs: function in ``matplotlib``
         
     """
-
     if ax is None:
         ax = plt.gca()
 
@@ -78,6 +81,21 @@ def plot_trend(x,
         bottomlim = scatter_kwargs["bottomlim"]
         fkind = scatter_kwargs["fkind"]
         plot_scatter_kwargs = scatter_kwargs["plot_scatter_kwargs"]
+
+    if prop_kwargs is None:
+        props = []
+    else:
+        props = prop_kwargs["props"]
+        pmin = prop_kwargs["pmin"]
+        pmax = prop_kwargs["pmax"]
+        indexs = list(set(np.where(props>=pmin)[0]) & (set(np.where(props<=pmax)[0])))
+
+    if prop_kwargs is None:
+        pass
+    else:
+        x = x[indexs]
+        y = y[indexs]
+        print(np.shape(x), np.shape(y))
 
     bad = flag_bad(x) | flag_bad(y)
     x = x[~bad]
@@ -118,8 +136,8 @@ def plot_trend(x,
         if (indexs == len(data_xrange) - 1): continue
         if (xyz_xsort[i, 0] >= data_xrange[indexs]
                 and xyz_xsort[i, 0] < data_xrange[indexs + 1]):
+            # the end of this array
             if (i == len(xyz_xsort[:, 0]) - 1):
-                #loads.append([len(xs),np.median(xs),np.median(ys),np.std(ys),np.quantile(ys,0.25,interpolation='lower'),np.quantile(ys,0.75,interpolation='higher'),np.sum(ys)])
                 if (ytype == 'median'): yvalue = np.median(ys)
                 elif (ytype == 'mean'): yvalue = np.mean(ys)
                 else: yvalue = np.percentile(ys, float(ytype))
@@ -158,7 +176,6 @@ def plot_trend(x,
                     xs.append(xyz_xsort[i, 0])
                     ys.append(xyz_xsort[i, 1])
 
-    #print(loads[0][:])
     loads = np.array(loads)
     ax.plot(loads[:, 0], loads[:, 1], **plot_kwargs)
     if (ifscatter):
