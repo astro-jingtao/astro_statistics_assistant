@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.stats import binned_statistic
 
 from .utils import flag_bad
 
@@ -15,6 +16,7 @@ def plot_trend(x,
                prop_kwargs=None,
                scatter_kwargs=None,
                plot_kwargs=None):
+    # TODO: support weights
     """
     Make a plot to show the trend between x and y
 
@@ -82,19 +84,13 @@ def plot_trend(x,
         fkind = scatter_kwargs["fkind"]
         plot_scatter_kwargs = scatter_kwargs["plot_scatter_kwargs"]
 
-    if prop_kwargs is None:
-        props = []
-    else:
+    if prop_kwargs is not None:
         props = prop_kwargs["props"]
         pmin = prop_kwargs["pmin"]
         pmax = prop_kwargs["pmax"]
-        indexs = list(set(np.where(props>=pmin)[0]) & (set(np.where(props<=pmax)[0])))
-
-    if prop_kwargs is None:
-        pass
-    else:
-        x = x[indexs]
-        y = y[indexs]
+        prop_index = (props >= pmin) & (props <= pmax)
+        x = x[prop_index]
+        y = y[prop_index]
         print(np.shape(x), np.shape(y))
 
     bad = flag_bad(x) | flag_bad(y)
@@ -119,71 +115,49 @@ def plot_trend(x,
         xrange = ranges[:][0]
         yrange = ranges[:][1]
 
-    data_xrange = np.linspace(xrange[0], xrange[1], bins + 1)
-    #print(x.max(),data_xrange,data_xrange[len(data_xrange)-2])
-    if (x.min() >= data_xrange[1]
-            or x.max() <= data_xrange[len(data_xrange) - 2]):
-        raise ValueError("It looks like the range is so broad")
+    is_y_in_range = (y > yrange[0]) & (y < yrange[1])
+    if ytype == "median":
+        y_statistic = "median"
+    elif ytype == "mean":
+        y_statistic = "mean"
+    else:
+        y_statistic = lambda x: np.percentile(x, float(ytype))
 
-    xys = np.vstack((x, y)).T
-    xyz_xsort = xys[np.argsort(xys[:, 0])]
+    loads = [
+        binned_statistic(x[is_y_in_range],
+                         x[is_y_in_range],
+                         statistic="median",
+                         bins=bins,
+                         range=xrange)[0]
+    ]
 
-    loads = []
-    xs = []
-    ys = []
-    indexs = 0
-    for i in range(len(xyz_xsort[:, 0])):
-        if (indexs == len(data_xrange) - 1): continue
-        if (xyz_xsort[i, 0] >= data_xrange[indexs]
-                and xyz_xsort[i, 0] < data_xrange[indexs + 1]):
-            # the end of this array
-            if (i == len(xyz_xsort[:, 0]) - 1):
-                if (ytype == 'median'): yvalue = np.median(ys)
-                elif (ytype == 'mean'): yvalue = np.mean(ys)
-                else: yvalue = np.percentile(ys, float(ytype))
-                if (ifscatter):
-                    if (len(ys) <= 3):
-                        raise ValueError("The length(%2i) of y is so short" %
-                                         len(ys))
-                    upvalue = np.percentile(ys, uplim)
-                    btvalue = np.percentile(ys, bottomlim)
-                    loads.append([np.median(xs), yvalue, upvalue, btvalue])
-                else:
-                    loads.append([np.median(xs), yvalue])
-            else:
-                if (xyz_xsort[i + 1, 0] >= data_xrange[indexs + 1]):
-                    if (ytype == 'median'): yvalue = np.median(ys)
-                    elif (ytype == 'mean'): yvalue = np.mean(ys)
-                    else: yvalue = np.percentile(ys, float(ytype))
+    statistic_list = [y_statistic]
 
-                    if (ifscatter):
-                        if (len(ys) <= 3):
-                            raise ValueError(
-                                "The length(%2i) of y is so short" % len(ys))
-                        upvalue = np.percentile(ys, uplim)
-                        btvalue = np.percentile(ys, bottomlim)
-                        loads.append([np.median(xs), yvalue, upvalue, btvalue])
-                    else:
-                        loads.append([np.median(xs), yvalue])
-                    #print(yvalue,upvalue,btvalue,np.percentile(ys,50))
-                    indexs = indexs + 1
-                    xs = []
-                    ys = []
-                else:
-                    if (xyz_xsort[i, 1] > yrange[1]
-                            or xyz_xsort[i, 1] < yrange[0]):
-                        continue
-                    xs.append(xyz_xsort[i, 0])
-                    ys.append(xyz_xsort[i, 1])
+    if ifscatter:
+        upper_statistic = lambda x: np.percentile(x, uplim)
+        bottom_statistic = lambda x: np.percentile(x, bottomlim)
 
-    loads = np.array(loads)
+        statistic_list.append(bottom_statistic)
+        statistic_list.append(upper_statistic)
+
+    for statistic in statistic_list:
+        _value, _, _ = binned_statistic(x[is_y_in_range],
+                                        y[is_y_in_range],
+                                        statistic=statistic,
+                                        bins=bins,
+                                        range=xrange)
+        loads.append(_value)
+
+    loads = np.vstack(loads).T
+
     ax.plot(loads[:, 0], loads[:, 1], **plot_kwargs)
-    if (ifscatter):
-        if (fkind == "errorbar"):
+    if fkind == "errorbar":
+        if ifscatter:
             ax.errorbar(loads[:, 0],
                         loads[:, 1],
                         yerr=(loads[:, 2] - loads[:, 3]) / 2.0,
                         **plot_scatter_kwargs)
-        if (fkind == "fbetween"):
+    elif fkind == "fbetween":
+        if ifscatter:
             ax.fill_between(loads[:, 0], loads[:, 3], loads[:, 2],
                             **plot_scatter_kwargs)
