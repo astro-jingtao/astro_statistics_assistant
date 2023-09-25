@@ -1,3 +1,4 @@
+import re
 from typing import Union, List
 import numpy as np
 import matplotlib.pyplot as plt
@@ -155,6 +156,31 @@ class Dataset:
         ax.set_xlabel(x_name)
         ax.set_ylabel(y_name)
 
+    def inequality_to_subsample(self, inequality_string, debug=False):
+        '''
+        Return the subsample according to the inequality string.
+        '''
+        # TODO: support & and | 
+        inequality_list = parse_inequality(inequality_string)
+        names_list = list(self.names)
+        subsample = np.ones(self.data.shape[0]).astype(bool)
+
+        op_list = ['<=', '>=', '<', '>']
+        for i, string in enumerate(inequality_list[2:]):
+            if string not in op_list:
+                this_inequality = inequality_list[i:i + 3]
+                for j in range(len(this_inequality)):
+                    if this_inequality[j] in names_list:
+                        this_inequality[j] = f"self['{this_inequality[j]}']"
+
+                command = "".join(this_inequality)
+                if debug:
+                    print(this_inequality)
+
+                subsample = subsample & eval(command)
+
+        return subsample
+
     def plot_xygeneral(self,
                        kind,
                        x_name,
@@ -168,6 +194,8 @@ class Dataset:
         # TODO: x_name -> x_names
         # TODO: data transformation
         # TODO: subsample deal with weight
+        # TODO: can set color, weight ... by name
+        # TODO: subsample parse 2<y<10
 
         y_names = string_to_list(y_names)
 
@@ -242,3 +270,7 @@ def auto_subplots(n, figshape=None, figsize=None, dpi=400):
     if n == 1:
         axes = np.array([axes])
     return fig, axes
+
+
+def parse_inequality(inequaliyt_string):
+    return re.split(r'(<=|>=|<|>)', inequaliyt_string.replace(" ", ""))
