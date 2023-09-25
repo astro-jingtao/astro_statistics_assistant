@@ -77,6 +77,27 @@ class Dataset:
     def add_row(self, new_rows) -> None:
         self.data = np.vstack((self.data, new_rows))
 
+    def del_col(self, key) -> None:
+        '''
+        deleta the data by index or name.
+        '''
+        if is_string_or_list_of_string(key):
+            names_list = list(self.names)
+            if isinstance(key, str):
+                key_idx = names_list.index(key)
+            else:
+                key_idx = [names_list.index(this_k) for this_k in key]
+            self.data = np.delete(self.data, key_idx, axis=1)
+            self.names = np.delete(self.names, key_idx, axis=0)
+            self.labels = np.delete(self.labels, key_idx, axis=0)
+        else:
+            self.data = np.delete(self.data, key, axis=1)
+            self.names = np.delete(self.names, key, axis=0)
+            self.labels = np.delete(self.labels, key, axis=0)
+
+    def del_row(self, ncol) -> None:
+        self.data = np.delete(self.data, ncol, axis=0)
+
     def _trend(self, x_name, y_name, ax, subsample=None, **kwargs):
 
         # TODO: label, etc.
