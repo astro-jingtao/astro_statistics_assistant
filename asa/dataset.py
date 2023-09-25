@@ -89,6 +89,13 @@ class Dataset:
                        self.data[:, y_idx],
                        ax=ax,
                        **kwargs)
+        elif isinstance(subsample, str):
+            subsample_idx = names_list.index(subsample)
+            _subsample = self.data[:, subsample_idx].astype(bool)
+            plot_trend(self.data[_subsample, x_idx],
+                       self.data[_subsample, y_idx],
+                       ax=ax,
+                       **kwargs)
         else:
             plot_trend(self.data[subsample, x_idx],
                        self.data[subsample, y_idx],
@@ -110,6 +117,13 @@ class Dataset:
                          self.data[:, y_idx],
                          ax=ax,
                          **kwargs)
+        elif isinstance(subsample, str):
+            subsample_idx = names_list.index(subsample)
+            _subsample = self.data[:, subsample_idx].astype(bool)
+            plot_contour(self.data[_subsample, x_idx],
+                         self.data[_subsample, y_idx],
+                         ax=ax,
+                         **kwargs)
         else:
             plot_contour(self.data[subsample, x_idx],
                          self.data[subsample, y_idx],
@@ -128,7 +142,9 @@ class Dataset:
                        **kwargs):
 
         # TODO: contour plot bin by the third variable
+        # TODO: x_name -> x_names
         # TODO: data transformation
+        # TODO: subsample deal with weight
 
         y_names = string_to_list(y_names)
 
