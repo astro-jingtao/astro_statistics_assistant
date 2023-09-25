@@ -1,5 +1,3 @@
-# MOVE TO Astro Statistic Assistant (ASA) PROJECT
-# DO NOT CHANGE THIS FILE IN THIS PROJECT
 # -*- coding: utf-8 -*-
 
 from __future__ import print_function, absolute_import
