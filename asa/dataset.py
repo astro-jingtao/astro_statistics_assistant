@@ -88,13 +88,14 @@ class Dataset:
                 key_idx: Union[int, List[int]] = names_list.index(key)
             else:
                 key_idx = [names_list.index(this_k) for this_k in key]
-            self.data = np.delete(self.data, key_idx, axis=1)
-            self.names = np.delete(self.names, key_idx, axis=0)
-            self.labels = np.delete(self.labels, key_idx, axis=0)
+            self._del_col(key_idx)
         else:
-            self.data = np.delete(self.data, key, axis=1)
-            self.names = np.delete(self.names, key, axis=0)
-            self.labels = np.delete(self.labels, key, axis=0)
+            self._del_col(key)
+
+    def _del_col(self, key):
+        self.data = np.delete(self.data, key, axis=1)
+        self.names = np.delete(self.names, key, axis=0)
+        self.labels = np.delete(self.labels, key, axis=0)
 
     def del_row(self, ncol) -> None:
         self.data = np.delete(self.data, ncol, axis=0)
