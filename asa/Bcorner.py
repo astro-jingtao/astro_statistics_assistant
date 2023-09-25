@@ -10,7 +10,7 @@ from matplotlib.ticker import MaxNLocator, NullLocator
 from matplotlib.colors import LinearSegmentedColormap, colorConverter
 from matplotlib.ticker import ScalarFormatter
 
-from .utilize import flag_bad
+from .utils import flag_bad
 
 try:
     from scipy.ndimage import gaussian_filter
