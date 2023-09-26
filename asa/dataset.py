@@ -114,8 +114,7 @@ class Dataset:
                        ax=ax,
                        **kwargs)
         elif isinstance(subsample, str):
-            subsample_idx = names_list.index(subsample)
-            _subsample = self.data[:, subsample_idx].astype(bool)
+            _subsample = self.string_to_subsample(subsample, names_list)
             plot_trend(self.data[_subsample, x_idx],
                        self.data[_subsample, y_idx],
                        ax=ax,
@@ -142,8 +141,7 @@ class Dataset:
                          ax=ax,
                          **kwargs)
         elif isinstance(subsample, str):
-            subsample_idx = names_list.index(subsample)
-            _subsample = self.data[:, subsample_idx].astype(bool)
+            _subsample = self.string_to_subsample(subsample)
             plot_contour(self.data[_subsample, x_idx],
                          self.data[_subsample, y_idx],
                          ax=ax,
@@ -156,11 +154,22 @@ class Dataset:
         ax.set_xlabel(x_name)
         ax.set_ylabel(y_name)
 
+    def string_to_subsample(self, string):
+        # sourcery skip: lift-return-into-if, remove-unnecessary-else
+        
+        if is_inequality(string):
+            _subsample = self.inequality_to_subsample(string)
+        else:
+            names_list = list(self.names)
+            subsample_idx = names_list.index(string)
+            _subsample = self.data[:, subsample_idx].astype(bool)
+        return _subsample
+
     def inequality_to_subsample(self, inequality_string, debug=False):
         '''
         Return the subsample according to the inequality string.
         '''
-        # TODO: support & and | 
+        # TODO: support & and |
         inequality_list = parse_inequality(inequality_string)
         names_list = list(self.names)
         subsample = np.ones(self.data.shape[0]).astype(bool)
@@ -195,7 +204,6 @@ class Dataset:
         # TODO: data transformation
         # TODO: subsample deal with weight
         # TODO: can set color, weight ... by name
-        # TODO: subsample parse 2<y<10
 
         y_names = string_to_list(y_names)
 
@@ -274,3 +282,7 @@ def auto_subplots(n, figshape=None, figsize=None, dpi=400):
 
 def parse_inequality(inequaliyt_string):
     return re.split(r'(<=|>=|<|>)', inequaliyt_string.replace(" ", ""))
+
+
+def is_inequality(string):
+    return re.search(r'(<=|>=|<|>)', string) is not None
