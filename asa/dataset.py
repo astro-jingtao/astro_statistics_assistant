@@ -108,20 +108,9 @@ class Dataset:
         names_list = list(self.names)
         x_idx = names_list.index(x_name)
         y_idx = names_list.index(y_name)
-        if subsample is None:
-            plot_trend(self.data[:, x_idx],
-                       self.data[:, y_idx],
-                       ax=ax,
-                       **kwargs)
-        elif isinstance(subsample, str):
-            _subsample = self.string_to_subsample(subsample, names_list)
-            plot_trend(self.data[_subsample, x_idx],
+        _subsample = self.get_subsample(subsample)
+        plot_trend(self.data[_subsample, x_idx],
                        self.data[_subsample, y_idx],
-                       ax=ax,
-                       **kwargs)
-        else:
-            plot_trend(self.data[subsample, x_idx],
-                       self.data[subsample, y_idx],
                        ax=ax,
                        **kwargs)
         ax.set_xlabel(x_name)
@@ -135,24 +124,25 @@ class Dataset:
         names_list = list(self.names)
         x_idx = names_list.index(x_name)
         y_idx = names_list.index(y_name)
-        if subsample is None:
-            plot_contour(self.data[:, x_idx],
-                         self.data[:, y_idx],
-                         ax=ax,
-                         **kwargs)
-        elif isinstance(subsample, str):
-            _subsample = self.string_to_subsample(subsample)
-            plot_contour(self.data[_subsample, x_idx],
+        _subsample = self.get_subsample(subsample)
+        plot_contour(self.data[_subsample, x_idx],
                          self.data[_subsample, y_idx],
-                         ax=ax,
-                         **kwargs)
-        else:
-            plot_contour(self.data[subsample, x_idx],
-                         self.data[subsample, y_idx],
                          ax=ax,
                          **kwargs)
         ax.set_xlabel(x_name)
         ax.set_ylabel(y_name)
+
+    def get_subsample(self, subsample):  # sourcery skip: lift-return-into-if
+        
+        if subsample is None:
+            _subsample = slice(None)
+        elif isinstance(subsample, str):
+            _subsample = self.string_to_subsample(subsample)
+        else:
+            _subsample = subsample
+
+        return _subsample
+
 
     def string_to_subsample(self, string):
         # sourcery skip: lift-return-into-if, remove-unnecessary-else
