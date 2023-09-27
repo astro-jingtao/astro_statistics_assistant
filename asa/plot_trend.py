@@ -151,13 +151,14 @@ def plot_trend(x,
     loads = np.vstack(loads).T
 
     ax.plot(loads[:, 0], loads[:, 1], **plot_kwargs)
-    if fkind == "errorbar":
-        if ifscatter:
-            ax.errorbar(loads[:, 0],
-                        loads[:, 1],
-                        yerr=(loads[:, 2] - loads[:, 3]) / 2.0,
-                        **plot_scatter_kwargs)
-    elif fkind == "fbetween":
-        if ifscatter:
-            ax.fill_between(loads[:, 0], loads[:, 3], loads[:, 2],
+
+    
+    if ifscatter:
+        if fkind == "errorbar":
+                ax.errorbar(loads[:, 0],
+                            loads[:, 1],
+                            yerr=(loads[:, 2] - loads[:, 3]) / 2.0,
                             **plot_scatter_kwargs)
+        elif fkind == "fbetween":
+                ax.fill_between(loads[:, 0], loads[:, 3], loads[:, 2],
+                                **plot_scatter_kwargs)
