@@ -5,8 +5,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from .plot_contour import plot_contour
 from .plot_trend import plot_trend
+from .plot_corner import plot_corner
 from .utils import string_to_list, is_string_or_list_of_string
 
+# TODO: megre all plot_xxx.py into plot_method.py
 
 class Dataset:
 
@@ -140,6 +142,7 @@ class Dataset:
         ax.set_xlabel(x_name)
         ax.set_ylabel(y_name)
 
+
     def get_subsample(self, subsample):  # sourcery skip: lift-return-into-if
 
         if subsample is None:
@@ -254,7 +257,7 @@ class Dataset:
                                           ax,
                                           subsample=subsample,
                                           **this_kwargs)
-            elif (scatter_type == 'x') or (scatter_type == 'single'):
+            elif scatter_type in ['x', 'single']:
                 self.method_mapping[kind](x_names[j],
                                           y_names[0],
                                           ax,
@@ -266,16 +269,6 @@ class Dataset:
                                           ax,
                                           subsample=subsample,
                                           **this_kwargs)
-
-        # for i, ax in enumerate(axes.flatten()):
-        #     this_kwargs = same_key.copy()
-        #     for key in each_key:
-        #         this_kwargs[key] = each_key[key][i]
-        #     self.method_mapping[kind](x_name,
-        #                               y_names[i],
-        #                               ax,
-        #                               subsample=subsample,
-        #                               **this_kwargs)
 
     def trend(self,
               x_names,
@@ -308,6 +301,16 @@ class Dataset:
                             axes=axes,
                             subplots_kwargs=subplots_kwargs,
                             **kwargs)
+        
+    def corner(self, names=None, axes=None, **kwargs):
+        '''
+        Plot the corner plot.
+        '''
+
+        # TODO: auto set labels
+        xs = np.array([self.get_data_by_name(name) for name in names]).T
+        return plot_corner(xs, **kwargs)
+
 
 
 def auto_subplots(n1, n2=None, figshape=None, figsize=None, dpi=400):
