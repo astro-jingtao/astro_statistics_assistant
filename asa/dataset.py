@@ -9,6 +9,10 @@ from .utils import string_to_list, is_string_or_list_of_string
 
 class Dataset:
 
+    # TODO: histogram, scatter, etc.
+
+    OP_MAP = {'log10': np.log10}
+
     def __init__(self, data, names, labels) -> None:
 
         # TODO: ranges
@@ -22,6 +26,8 @@ class Dataset:
         '''
         Get the data by index or name.
         '''
+
+        # support log10@x here
 
         if isinstance(key, tuple):
             if len(key) != 2:
@@ -101,18 +107,22 @@ class Dataset:
     def del_row(self, ncol) -> None:
         self.data = np.delete(self.data, ncol, axis=0)
 
+    def get_data_by_name(self, name):
+        # sourcery skip: remove-unnecessary-else, swap-if-else-branches
+        if '@' in name:
+            op, name = name.split('@')
+            return self.OP_MAP[op](self[name])
+        else:
+            return self[name]
+
     def _trend(self, x_name, y_name, ax, subsample=None, **kwargs):
 
         # TODO: label, etc.
 
-        names_list = list(self.names)
-        x_idx = names_list.index(x_name)
-        y_idx = names_list.index(y_name)
+        x = self.get_data_by_name(x_name)
+        y = self.get_data_by_name(y_name)
         _subsample = self.get_subsample(subsample)
-        plot_trend(self.data[_subsample, x_idx],
-                       self.data[_subsample, y_idx],
-                       ax=ax,
-                       **kwargs)
+        plot_trend(x[_subsample], y[_subsample], ax=ax, **kwargs)
         ax.set_xlabel(x_name)
         ax.set_ylabel(y_name)
         ax.legend()
@@ -121,19 +131,15 @@ class Dataset:
 
         # TODO: labels, titles, ranges, etc.
 
-        names_list = list(self.names)
-        x_idx = names_list.index(x_name)
-        y_idx = names_list.index(y_name)
+        x = self.get_data_by_name(x_name)
+        y = self.get_data_by_name(y_name)
         _subsample = self.get_subsample(subsample)
-        plot_contour(self.data[_subsample, x_idx],
-                         self.data[_subsample, y_idx],
-                         ax=ax,
-                         **kwargs)
+        plot_contour(x[_subsample], y[_subsample], ax=ax, **kwargs)
         ax.set_xlabel(x_name)
         ax.set_ylabel(y_name)
 
     def get_subsample(self, subsample):  # sourcery skip: lift-return-into-if
-        
+
         if subsample is None:
             _subsample = slice(None)
         elif isinstance(subsample, str):
@@ -143,10 +149,9 @@ class Dataset:
 
         return _subsample
 
-
     def string_to_subsample(self, string):
         # sourcery skip: lift-return-into-if, remove-unnecessary-else
-        
+
         if is_inequality(string):
             _subsample = self.inequality_to_subsample(string)
         else:

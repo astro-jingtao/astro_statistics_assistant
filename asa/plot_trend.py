@@ -75,6 +75,7 @@ def plot_trend(x,
     if plot_kwargs is None:
         plot_kwargs = {}
 
+    # TODO: default value
     if scatter_kwargs is None:
         ifscatter = False
     else:
@@ -152,7 +153,7 @@ def plot_trend(x,
 
     ax.plot(loads[:, 0], loads[:, 1], **plot_kwargs)
 
-    
+
     if ifscatter:
         if fkind == "errorbar":
                 ax.errorbar(loads[:, 0],
