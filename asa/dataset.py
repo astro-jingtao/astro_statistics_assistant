@@ -203,6 +203,10 @@ class Dataset:
         if axes is None:
             _, axes = auto_subplots(len(y_names), **subplots_kwargs)
 
+        # axes is a single ax, convert it to an array
+        if not hasattr(axes, '__iter__'):
+            axes = np.array([axes])
+
         same_key = {}
         each_key = {}
         for key in kwargs:
