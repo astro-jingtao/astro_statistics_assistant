@@ -1,3 +1,4 @@
+import itertools
 import re
 from typing import Union, List
 import numpy as np
@@ -16,6 +17,7 @@ class Dataset:
     def __init__(self, data, names, labels) -> None:
 
         # TODO: ranges
+        # TODO: wrap corner
 
         self.data = np.asarray(data)
         self.names = np.asarray(names)
@@ -187,7 +189,7 @@ class Dataset:
 
     def plot_xygeneral(self,
                        kind,
-                       x_name,
+                       x_names,
                        y_names,
                        subsample=None,
                        axes=None,
@@ -195,20 +197,34 @@ class Dataset:
                        **kwargs):
 
         # TODO: contour plot bin by the third variable
-        # TODO: x_name -> x_names
-        # TODO: data transformation
         # TODO: subsample deal with weight
         # TODO: can set color, weight ... by name
 
+        x_names = string_to_list(x_names)
         y_names = string_to_list(y_names)
+
+        n1 = len(x_names)
+        n2 = len(y_names)
+
+        if (n1 > 1) and (n2 > 1):
+            scatter_type = 'xy'
+        elif (n1 > 1) and (n2 == 1):
+            scatter_type = 'x'
+        elif (n1 == 1) and (n2 > 1):
+            scatter_type = 'y'
+        elif (n1 == 1) and (n2 == 1):
+            scatter_type = 'single'
 
         if subplots_kwargs is None:
             subplots_kwargs = {}
 
         if axes is None:
-            _, axes = auto_subplots(len(y_names), **subplots_kwargs)
+            if scatter_type == 'xy':
+                _, axes = auto_subplots(n1, n2, **subplots_kwargs)
+            else:
+                _, axes = auto_subplots(n1 * n2, **subplots_kwargs)
 
-        # axes is a single ax, convert it to an array
+        # If axes is a single ax, convert it to an array
         if not hasattr(axes, '__iter__'):
             axes = np.array([axes])
 
@@ -219,21 +235,50 @@ class Dataset:
             if key.endswith('_each'):
                 key_single = key[:-5]
                 each_key[key_single] = kwargs[key]
+                # if is 1D list, convert it to 2D list
+                if not isinstance(each_key[key_single][0], list):
+                    each_key[key_single] = [each_key[key_single]]
             else:
                 same_key[key] = kwargs[key]
 
-        for i, ax in enumerate(axes.flatten()):
+        # i, vertical, y; j, horizontal, x
+        for (j, i), ax in zip(itertools.product(range(n1), range(n2)),
+                              axes.T.flatten()):
             this_kwargs = same_key.copy()
+
             for key in each_key:
-                this_kwargs[key] = each_key[key][i]
-            self.method_mapping[kind](x_name,
-                                      y_names[i],
-                                      ax,
-                                      subsample=subsample,
-                                      **this_kwargs)
+                this_kwargs[key] = each_key[key][j][i]
+            if scatter_type == 'xy':
+                self.method_mapping[kind](x_names[j],
+                                          y_names[i],
+                                          ax,
+                                          subsample=subsample,
+                                          **this_kwargs)
+            elif (scatter_type == 'x') or (scatter_type == 'single'):
+                self.method_mapping[kind](x_names[j],
+                                          y_names[0],
+                                          ax,
+                                          subsample=subsample,
+                                          **this_kwargs)
+            elif scatter_type == 'y':
+                self.method_mapping[kind](x_names[0],
+                                          y_names[j],
+                                          ax,
+                                          subsample=subsample,
+                                          **this_kwargs)
+
+        # for i, ax in enumerate(axes.flatten()):
+        #     this_kwargs = same_key.copy()
+        #     for key in each_key:
+        #         this_kwargs[key] = each_key[key][i]
+        #     self.method_mapping[kind](x_name,
+        #                               y_names[i],
+        #                               ax,
+        #                               subsample=subsample,
+        #                               **this_kwargs)
 
     def trend(self,
-              x_name,
+              x_names,
               y_names,
               subsample=None,
               axes=None,
@@ -241,7 +286,7 @@ class Dataset:
               **kwargs):
 
         self.plot_xygeneral('trend',
-                            x_name,
+                            x_names,
                             y_names,
                             subsample=subsample,
                             axes=axes,
@@ -249,7 +294,7 @@ class Dataset:
                             **kwargs)
 
     def contour(self,
-                x_name,
+                x_names,
                 y_names,
                 subsample=None,
                 axes=None,
@@ -257,7 +302,7 @@ class Dataset:
                 **kwargs):
 
         self.plot_xygeneral('contour',
-                            x_name,
+                            x_names,
                             y_names,
                             subsample=subsample,
                             axes=axes,
@@ -265,16 +310,19 @@ class Dataset:
                             **kwargs)
 
 
-def auto_subplots(n, figshape=None, figsize=None, dpi=400):
+def auto_subplots(n1, n2=None, figshape=None, figsize=None, dpi=400):
     if figshape is None:
-        figshape = (int(np.ceil(np.sqrt(n))), int(np.ceil(np.sqrt(n))))
+        if n2 is None:
+            figshape = (int(np.ceil(np.sqrt(n1))), int(np.ceil(np.sqrt(n1))))
+        else:
+            figshape = (n2, n1)  # vertical, horizontal
     if figsize is None:
         figsize = (figshape[1] * 4, figshape[0] * 4)
     fig, axes = plt.subplots(figshape[0],
                              figshape[1],
                              figsize=figsize,
                              dpi=400)
-    if n == 1:
+    if not hasattr(axes, '__iter__'):
         axes = np.array([axes])
     return fig, axes
 
