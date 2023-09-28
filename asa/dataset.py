@@ -266,11 +266,11 @@ class Dataset:
                                           **this_kwargs)
             elif scatter_type == 'y':
                 self.method_mapping[kind](x_names[0],
-                                          y_names[j],
+                                          y_names[i],
                                           ax,
                                           subsample=subsample,
                                           **this_kwargs)
-
+          
     def trend(self,
               x_names,
               y_names,

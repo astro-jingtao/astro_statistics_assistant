@@ -18,8 +18,6 @@ def plot_trend(x,
                scatter_kwargs=None,
                plot_kwargs=None):
     # TODO: support weights
-    # TODO: better default values
-    # TODO: bottom -> low
     """
     Make a plot to show the trend between x and y
 
@@ -66,7 +64,7 @@ def plot_trend(x,
     scatter_kwargs: dict (to be added)
         ifscatter: whether to plot scatter
         uplim (%): The upper limit of the scatter
-        bottomlim (%): The bottom limit of the scatter
+        lowlim (%): The lower limit of the scatter
         fkind: which ways to show the scatter, "errorbar" and "fbetween" are available
         plot_scatter_kwargs: function in ``matplotlib``
         
@@ -81,11 +79,36 @@ def plot_trend(x,
     if scatter_kwargs is None:
         ifscatter = False
     else:
-        ifscatter = scatter_kwargs["ifscatter"]
-        uplim = scatter_kwargs["uplim"]
-        bottomlim = scatter_kwargs["bottomlim"]
-        fkind = scatter_kwargs["fkind"]
-        plot_scatter_kwargs = scatter_kwargs["plot_scatter_kwargs"]
+        if "ifscatter" in scatter_kwargs.keys():
+            ifscatter = scatter_kwargs["ifscatter"]
+        else:
+            ifscatter = False
+        if(ifscatter):
+            if "uplim" in scatter_kwargs.keys():
+                uplim = scatter_kwargs["uplim"]
+            else:
+                uplim = 75
+            if "lowlim" in scatter_kwargs.keys():
+                lowlim = scatter_kwargs["lowlim"]
+            else:
+                lowlim = 25
+            if "fkind" in scatter_kwargs.keys():
+                fkind = scatter_kwargs["fkind"]
+            else:
+                fkind = "fbetween"
+            if "plot_scatter_kwargs" in scatter_kwargs.keys():
+                plot_scatter_kwargs = scatter_kwargs["plot_scatter_kwargs"]
+                if "alpha" in scatter_kwargs:
+                    pass
+                else:
+                    plot_scatter_kwargs["alpha"] = 0.2
+            else:
+                if "color" in plot_kwargs:
+                    plot_scatter_kwargs = {"color" : plot_kwargs["color"],
+                    "alpha" : 0.2}
+                else:
+                    plot_scatter_kwargs = {"alpha" : 0.2}
+
 
     if prop_kwargs is not None:
         props = prop_kwargs["props"]
@@ -138,9 +161,9 @@ def plot_trend(x,
 
     if ifscatter:
         upper_statistic = lambda x: np.percentile(x, uplim)
-        bottom_statistic = lambda x: np.percentile(x, bottomlim)
+        lower_statistic = lambda x: np.percentile(x, lowlim)
 
-        statistic_list.append(bottom_statistic)
+        statistic_list.append(lower_statistic)
         statistic_list.append(upper_statistic)
 
     for statistic in statistic_list:
