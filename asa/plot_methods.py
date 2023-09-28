@@ -75,7 +75,6 @@ def plot_trend(x,
     if plot_kwargs is None:
         plot_kwargs = {}
 
-    # TODO: default value
     if scatter_kwargs is None:
         ifscatter = False
     else:
@@ -83,32 +82,24 @@ def plot_trend(x,
             ifscatter = scatter_kwargs["ifscatter"]
         else:
             ifscatter = False
-        if(ifscatter):
-            if "uplim" in scatter_kwargs.keys():
-                uplim = scatter_kwargs["uplim"]
-            else:
-                uplim = 75
-            if "lowlim" in scatter_kwargs.keys():
-                lowlim = scatter_kwargs["lowlim"]
-            else:
-                lowlim = 25
-            if "fkind" in scatter_kwargs.keys():
-                fkind = scatter_kwargs["fkind"]
-            else:
-                fkind = "fbetween"
+        if ifscatter:
+            uplim = scatter_kwargs.get("uplim", 75)
+            lowlim = scatter_kwargs.get("lowlim", 25)
+            fkind = scatter_kwargs.get("fkind", "fbetween")
+
+            # sourcery skip: merge-else-if-into-elif
             if "plot_scatter_kwargs" in scatter_kwargs.keys():
                 plot_scatter_kwargs = scatter_kwargs["plot_scatter_kwargs"]
-                if "alpha" in scatter_kwargs:
-                    pass
-                else:
+                if "alpha" not in scatter_kwargs:
                     plot_scatter_kwargs["alpha"] = 0.2
             else:
                 if "color" in plot_kwargs:
-                    plot_scatter_kwargs = {"color" : plot_kwargs["color"],
-                    "alpha" : 0.2}
+                    plot_scatter_kwargs = {
+                        "color": plot_kwargs["color"],
+                        "alpha": 0.2
+                    }
                 else:
-                    plot_scatter_kwargs = {"alpha" : 0.2}
-
+                    plot_scatter_kwargs = {"alpha": 0.2}
 
     if prop_kwargs is not None:
         props = prop_kwargs["props"]
@@ -117,7 +108,7 @@ def plot_trend(x,
         prop_index = (props >= pmin) & (props <= pmax)
         x = x[prop_index]
         y = y[prop_index]
-        print(np.shape(x), np.shape(y))
+        # print(np.shape(x), np.shape(y))
 
     bad = flag_bad(x) | flag_bad(y)
     x = x[~bad]
@@ -178,13 +169,14 @@ def plot_trend(x,
 
     ax.plot(loads[:, 0], loads[:, 1], **plot_kwargs)
 
-    if ifscatter:
-        if fkind == "errorbar":
+    if fkind == "errorbar":
+        if ifscatter:
             ax.errorbar(loads[:, 0],
                         loads[:, 1],
                         yerr=(loads[:, 2] - loads[:, 3]) / 2.0,
                         **plot_scatter_kwargs)
-        elif fkind == "fbetween":
+    elif fkind == "fbetween":
+        if ifscatter:
             ax.fill_between(loads[:, 0], loads[:, 3], loads[:, 2],
                             **plot_scatter_kwargs)
 
