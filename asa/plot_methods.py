@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import binned_statistic
 
+from .Bcorner import corner, hist2d
 from .utils import flag_bad
 
 
@@ -19,7 +20,6 @@ def plot_trend(x,
     # TODO: support weights
     # TODO: better default values
     # TODO: bottom -> low
-
     """
     Make a plot to show the trend between x and y
 
@@ -155,13 +155,118 @@ def plot_trend(x,
 
     ax.plot(loads[:, 0], loads[:, 1], **plot_kwargs)
 
-
     if ifscatter:
         if fkind == "errorbar":
-                ax.errorbar(loads[:, 0],
-                            loads[:, 1],
-                            yerr=(loads[:, 2] - loads[:, 3]) / 2.0,
-                            **plot_scatter_kwargs)
+            ax.errorbar(loads[:, 0],
+                        loads[:, 1],
+                        yerr=(loads[:, 2] - loads[:, 3]) / 2.0,
+                        **plot_scatter_kwargs)
         elif fkind == "fbetween":
-                ax.fill_between(loads[:, 0], loads[:, 3], loads[:, 2],
-                                **plot_scatter_kwargs)
+            ax.fill_between(loads[:, 0], loads[:, 3], loads[:, 2],
+                            **plot_scatter_kwargs)
+
+
+def plot_corner(xs,
+                bins=20,
+                range=None,
+                weights=None,
+                color="k",
+                hist_bin_factor=1,
+                kde_smooth=False,
+                kde_smooth1d=False,
+                smooth=None,
+                smooth1d=None,
+                labels=None,
+                label_kwargs=None,
+                show_titles=False,
+                title_fmt=".2f",
+                title_kwargs=None,
+                truths=None,
+                truth_color="#4682b4",
+                scale_hist=False,
+                quantiles=None,
+                verbose=False,
+                fig=None,
+                max_n_ticks=5,
+                top_ticks=False,
+                use_math_text=False,
+                reverse=False,
+                hist_kwargs=None,
+                plot_add=None,
+                plot_add_1d=None,
+                dpi=None,
+                **hist2d_kwargs):
+    corner(xs,
+           bins=bins,
+           range=range,
+           weights=weights,
+           color=color,
+           hist_bin_factor=hist_bin_factor,
+           kde_smooth=kde_smooth,
+           kde_smooth1d=kde_smooth1d,
+           smooth=smooth,
+           smooth1d=smooth1d,
+           labels=labels,
+           label_kwargs=label_kwargs,
+           show_titles=show_titles,
+           title_fmt=title_fmt,
+           title_kwargs=title_kwargs,
+           truths=truths,
+           truth_color=truth_color,
+           scale_hist=scale_hist,
+           quantiles=quantiles,
+           verbose=verbose,
+           fig=fig,
+           max_n_ticks=max_n_ticks,
+           top_ticks=top_ticks,
+           use_math_text=use_math_text,
+           reverse=reverse,
+           hist_kwargs=hist_kwargs,
+           plot_add=plot_add,
+           plot_add_1d=plot_add_1d,
+           dpi=dpi,
+           **hist2d_kwargs)
+
+
+def plot_contour(x,
+                 y,
+                 bins=20,
+                 range='auto',
+                 kde_smooth=False,
+                 auto_p=None,
+                 weights=None,
+                 levels=None,
+                 smooth=None,
+                 ax=None,
+                 color=None,
+                 quiet=False,
+                 plot_datapoints=True,
+                 plot_density=True,
+                 plot_contours=True,
+                 no_fill_contours=False,
+                 fill_contours=False,
+                 contour_kwargs=None,
+                 contourf_kwargs=None,
+                 data_kwargs=None,
+                 pcolor_kwargs=None):
+    hist2d(x,
+           y,
+           bins=bins,
+           range=range,
+           kde_smooth=kde_smooth,
+           auto_p=auto_p,
+           weights=weights,
+           levels=levels,
+           smooth=smooth,
+           ax=ax,
+           color=color,
+           quiet=quiet,
+           plot_datapoints=plot_datapoints,
+           plot_density=plot_density,
+           plot_contours=plot_contours,
+           no_fill_contours=no_fill_contours,
+           fill_contours=fill_contours,
+           contour_kwargs=contour_kwargs,
+           contourf_kwargs=contourf_kwargs,
+           data_kwargs=data_kwargs,
+           pcolor_kwargs=pcolor_kwargs)
