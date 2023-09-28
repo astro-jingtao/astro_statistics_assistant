@@ -19,6 +19,7 @@ def plot_trend(x,
     # TODO: support weights
     # TODO: better default values
     # TODO: bottom -> low
+
     """
     Make a plot to show the trend between x and y
 
