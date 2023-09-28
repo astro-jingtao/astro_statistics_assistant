@@ -8,18 +8,18 @@ from .plot_trend import plot_trend
 from .plot_corner import plot_corner
 from .utils import string_to_list, is_string_or_list_of_string
 
-# TODO: megre all plot_xxx.py into plot_method.py
+# TODO: megre all plot_xxx.py into plot_methods.py
 
 class Dataset:
 
     # TODO: histogram, scatter, etc.
+    # TODO: heatmap
 
     OP_MAP = {'log10': np.log10}
 
     def __init__(self, data, names, labels) -> None:
 
         # TODO: ranges
-        # TODO: wrap corner
 
         self.data = np.asarray(data)
         self.names = np.asarray(names)
@@ -221,15 +221,20 @@ class Dataset:
         if subplots_kwargs is None:
             subplots_kwargs = {}
 
+        
         if axes is None:
             if scatter_type == 'xy':
-                _, axes = auto_subplots(n1, n2, **subplots_kwargs)
+                fig, axes = auto_subplots(n1, n2, **subplots_kwargs)
             else:
-                _, axes = auto_subplots(n1 * n2, **subplots_kwargs)
+                fig, axes = auto_subplots(n1 * n2, **subplots_kwargs)
 
         # If axes is a single ax, convert it to an array
         if not hasattr(axes, '__iter__'):
             axes = np.array([axes])
+
+        # find fig by axes
+        fig = axes.flatten()[0].get_figure()
+        
 
         same_key = {}
         each_key = {}
