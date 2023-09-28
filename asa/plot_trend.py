@@ -17,9 +17,10 @@ def plot_trend(x,
                scatter_kwargs=None,
                plot_kwargs=None):
     # TODO: support weights
+    # TODO: better default values
+    # TODO: bottom -> low
     """
     Make a plot to show the trend between x and y
-
 
     Parameters
     -----------------
