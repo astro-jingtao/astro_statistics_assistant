@@ -3,12 +3,8 @@ import re
 from typing import Union, List
 import numpy as np
 import matplotlib.pyplot as plt
-from .plot_contour import plot_contour
-from .plot_trend import plot_trend
-from .plot_corner import plot_corner
+from .plot_methods import plot_contour, plot_trend, plot_corner
 from .utils import string_to_list, is_string_or_list_of_string
-
-# TODO: megre all plot_xxx.py into plot_methods.py
 
 class Dataset:
 
