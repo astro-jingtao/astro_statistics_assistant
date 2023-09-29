@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import binned_statistic
 
-from .Bcorner import corner, hist2d
+from .Bcorner import corner, hist2d, quantile
 from .utils import flag_bad
 
 
@@ -12,10 +12,12 @@ def plot_trend(x,
                ytype='median',
                fig=None,
                ax=None,
-               ranges=None,
+               range=None,
                auto_p=None,
+               weights=None,
                prop_kwargs=None,
                scatter_kwargs=None,
+               plot_scatter_kwargs=None,
                plot_kwargs=None):
     # TODO: support weights
     """
@@ -29,6 +31,13 @@ def plot_trend(x,
     y : array_like[nsamples,]                            
         The samples.
                                                                      
+    ytype: Character string or float
+        The y value used to plot
+        The available character string is "median" or 'mean'. If ytype is set as "median", the trend is shown by the median value of y as a function of x.
+        if ytype is float, y_value = np.percentile(y, ytype)
+        default: "median"
+
+
     range: array_like[2, 2] or string ([x_min, x_max], [y_min, y_max]), 
         if not 'auto', the range is automatically determined according to quantile specified by auto_p, if 'auto'                                                        
         default: 'auto'
@@ -41,11 +50,8 @@ def plot_trend(x,
        y_max = np.percentile(y, auto_p[1][1])
        default: ([1, 99], [1, 99])
 
-    ytype: Character string or float
-        The y value used to plot
-        The available character string is "median" or 'mean'. If ytype is set as "median", the trend is shown by the median value of y as a function of x.
-        if ytype is float, y_value = np.percentile(y, ytype)
-        default: "median"
+    weights: Optional[array_like[nsamples,]] 
+        An optional weight corresponding to each sample.
     
     ax : matplotlib.Axes
         A axes instance on which to add the line.
@@ -66,9 +72,13 @@ def plot_trend(x,
         uplim (%): The upper limit of the scatter
         lowlim (%): The lower limit of the scatter
         fkind: which ways to show the scatter, "errorbar" and "fbetween" are available
-        plot_scatter_kwargs: function in ``matplotlib``
         
+    plot_scatter_kwargs: dict
+        to describe the scatter
+        function in ``matplotlib``
+    
     """
+
     if ax is None:
         ax = plt.gca()
 
@@ -88,18 +98,30 @@ def plot_trend(x,
             fkind = scatter_kwargs.get("fkind", "fbetween")
 
             # sourcery skip: merge-else-if-into-elif
-            if "plot_scatter_kwargs" in scatter_kwargs.keys():
-                plot_scatter_kwargs = scatter_kwargs["plot_scatter_kwargs"]
-                if "alpha" not in scatter_kwargs:
-                    plot_scatter_kwargs["alpha"] = 0.2
-            else:
-                if "color" in plot_kwargs:
-                    plot_scatter_kwargs = {
-                        "color": plot_kwargs["color"],
-                        "alpha": 0.2
-                    }
-                else:
-                    plot_scatter_kwargs = {"alpha": 0.2}
+            #if "plot_scatter_kwargs" in scatter_kwargs.keys():
+            #    plot_scatter_kwargs = scatter_kwargs["plot_scatter_kwargs"]
+            #    if "alpha" not in scatter_kwargs:
+            #        plot_scatter_kwargs["alpha"] = 0.2
+            #else:
+            #    if "color" in plot_kwargs:
+            #        plot_scatter_kwargs = {
+            #            "color": plot_kwargs["color"],
+            #            "alpha": 0.2
+            #        }
+            #    else:
+            #        plot_scatter_kwargs = {"alpha": 0.2}
+   
+    if ifscatter:
+        if plot_scatter_kwargs is None:
+            plot_scatter_kwargs = {}
+            plot_scatter_kwargs["color"] = plot_kwargs.get("color", "r")
+            plot_scatter_kwargs["alpha"] = 0.2
+        else:
+            if "color" not in plot_scatter_kwargs:
+                plot_scatter_kwargs["color"] = plot_kwargs.get("color", "r")
+            if "alpha" not in plot_scatter_kwargs:
+                plot_scatter_kwargs["alpha"] = 0.2
+
 
     if prop_kwargs is not None:
         props = prop_kwargs["props"]
@@ -114,10 +136,10 @@ def plot_trend(x,
     x = x[~bad]
     y = y[~bad]
 
-    if ranges is None:
+    if range is None:
         xrange = [x.min(), x.max()]
         yrange = [y.min(), y.max()]
-    elif ranges == 'auto':
+    elif range == 'auto':
         if auto_p is None:
             auto_p = ([1, 99], [1, 99])
         xrange = [
@@ -129,8 +151,8 @@ def plot_trend(x,
             np.percentile(y, auto_p[1][1])
         ]
     else:
-        xrange = ranges[:][0]
-        yrange = ranges[:][1]
+        xrange = range[:][0]
+        yrange = range[:][1]
 
     is_y_in_range = (y > yrange[0]) & (y < yrange[1])
     if ytype == "median":
@@ -147,36 +169,63 @@ def plot_trend(x,
                          bins=bins,
                          range=xrange)[0]
     ]
-
     statistic_list = [y_statistic]
 
     if ifscatter:
-        upper_statistic = lambda x: np.percentile(x, uplim)
-        lower_statistic = lambda x: np.percentile(x, lowlim)
+        if weights is None:
+            upper_statistic = lambda x: np.percentile(x, uplim)
+            lower_statistic = lambda x: np.percentile(x, lowlim)
+        else:
+            upper_statistic = uplim/100.0
+            lower_statistic = lowlim/100.0
 
         statistic_list.append(lower_statistic)
         statistic_list.append(upper_statistic)
 
-    for statistic in statistic_list:
-        _value, _, _ = binned_statistic(x[is_y_in_range],
-                                        y[is_y_in_range],
-                                        statistic=statistic,
-                                        bins=bins,
-                                        range=xrange)
-        loads.append(_value)
+    if weights is None:
+        for statistic in statistic_list:
+            _value, _, _ = binned_statistic(x[is_y_in_range],
+                                            y[is_y_in_range],
+                                            statistic=statistic,
+                                            bins=bins,
+                                            range=xrange)
+            loads.append(_value)
+    else:
+        _, _, _binnumber = binned_statistic(x[is_y_in_range],
+                                            y[is_y_in_range],
+                                            statistic='count',
+                                            bins=bins,
+                                            range=xrange)
+
+        for statistic in statistic_list:
+            if statistic == 'median':
+                wstatistic = 0.5
+            elif statistic == 'mean':
+                print('TO DO')
+            else:
+                wstatistic = statistic
+       
+            tmp_value = []
+            for ibin in np.linspace(1,bins,bins,dtype='int'):
+                yuse = y[is_y_in_range]
+                wuse = weights[is_y_in_range]
+                yused = yuse[np.where(_binnumber==ibin)]
+                wused = wuse[np.where(_binnumber==ibin)]
+                _value = quantile(yused,wstatistic,wused)
+                tmp_value.append(_value[0])
+            loads.append(tmp_value)
 
     loads = np.vstack(loads).T
 
     ax.plot(loads[:, 0], loads[:, 1], **plot_kwargs)
 
-    if fkind == "errorbar":
-        if ifscatter:
+    if ifscatter:
+        if fkind == "errorbar":
             ax.errorbar(loads[:, 0],
                         loads[:, 1],
                         yerr=(loads[:, 2] - loads[:, 3]) / 2.0,
                         **plot_scatter_kwargs)
-    elif fkind == "fbetween":
-        if ifscatter:
+        elif fkind == "fbetween":
             ax.fill_between(loads[:, 0], loads[:, 3], loads[:, 2],
                             **plot_scatter_kwargs)
 
