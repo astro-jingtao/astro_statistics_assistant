@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 # from scipy.stats import binned_statistic
 
 from .Bcorner import corner, hist2d, quantile
-from .utils import flag_bad, weighted_binned_statistic
+from .utils import flag_bad, weighted_binned_statistic, bin_2d
 
 
 def plot_trend(x,
@@ -172,7 +172,7 @@ def plot_trend(x,
                                            range=xrange)
         loads.append(_value)
 
-    loads = np.hstack(loads)    
+    loads = np.hstack(loads)
 
     ax.plot(loads[:, 0], loads[:, 1], **plot_kwargs)
 
@@ -185,7 +185,6 @@ def plot_trend(x,
         elif fkind == "fbetween":
             ax.fill_between(loads[:, 0], loads[:, 3], loads[:, 2],
                             **plot_scatter_kwargs)
-
 
 
 def plot_scatter(x,
@@ -219,12 +218,12 @@ def plot_scatter(x,
         xrange = range[:][0]
         yrange = range[:][1]
 
-    is_in_range = (x > xrange[0]) & (x < xrange[1]) & (y > yrange[0]) & (y < yrange[1])
+    is_in_range = (x > xrange[0]) & (x < xrange[1]) & (y > yrange[0]) & (
+        y < yrange[1])
     if weights is None:
         weights = np.ones_like(x)
 
     ax.scatter(x[is_in_range], y[is_in_range], **plot_kwargs)
-
 
 
 def plot_corner(xs,
@@ -331,3 +330,36 @@ def plot_contour(x,
            contourf_kwargs=contourf_kwargs,
            data_kwargs=data_kwargs,
            pcolor_kwargs=pcolor_kwargs)
+
+
+def plot_heatmap(x,
+                 y,
+                 z,
+                 ax=None,
+                 bins=10,
+                 xlabel='x',
+                 ylabel='y',
+                 vmax=None,
+                 vmin=None,
+                 cmap='seismic',
+                 min_data=0,
+                 range=None,
+                 **kwargs):
+    # TODO: support contour line
+    X, Y, Z, x_edges, y_edges = bin_2d(x,
+                                       y,
+                                       z,
+                                       bins,
+                                       min_data=min_data,
+                                       range=range)
+    if ax is None:
+        ax = plt.gca()
+
+    ax.pcolor(x_edges,
+              y_edges,
+              Z,
+              alpha=0.7,
+              cmap=cmap,
+              vmax=vmax,
+              vmin=vmin,
+              **kwargs)
