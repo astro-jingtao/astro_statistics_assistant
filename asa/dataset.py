@@ -296,6 +296,7 @@ class Dataset:
             if key.endswith('_each'):
                 key_single = key[:-5]
                 each_key[key_single] = kwargs[key]
+                # TODO: corner case: range = [[1, 2], [1, 2]]
                 # if is 1D list, convert it to 2D list
                 if not isinstance(each_key[key_single][0], list):
                     each_key[key_single] = [each_key[key_single]]
