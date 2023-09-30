@@ -16,6 +16,7 @@ class Dataset:
     def __init__(self, data, names, labels) -> None:
 
         # TODO: ranges
+        # TODO: read pandas DF
 
         self.data = np.asarray(data)
         self.names = np.asarray(names)
@@ -246,8 +247,8 @@ class Dataset:
                 same_key[key] = kwargs[key]
 
         # i, vertical, y; j, horizontal, x
-        for (j, i), ax in zip(itertools.product(range(n1), range(n2)),
-                              axes.T.flatten()):
+        for (i, j), ax in zip(itertools.product(range(n2), range(n1)),
+                              axes.flatten()):
             this_kwargs = same_key.copy()
 
             for key in each_key:
