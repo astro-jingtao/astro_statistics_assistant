@@ -12,7 +12,7 @@ class Dataset:
     # TODO: histogram, scatter, etc.
     # TODO: heatmap
 
-    OP_MAP = {'log10': np.log10}
+    OP_MAP = {'log10': np.log10, 'square': np.square}
 
     def __init__(self, data, names=None, labels=None) -> None:
         # TODO: ranges
@@ -122,7 +122,9 @@ class Dataset:
 
     def get_data_by_name(self, name):
         # sourcery skip: remove-unnecessary-else, swap-if-else-branches
-        if '@' in name:
+        if name is None:
+            return None
+        elif '@' in name:
             op, name = name.split('@')
             return self.OP_MAP[op](self[name])
         else:
@@ -134,8 +136,10 @@ class Dataset:
 
         x = self.get_data_by_name(x_name)
         y = self.get_data_by_name(y_name)
+        weights = kwargs.pop('weights', None) 
+        weights = self.get_data_by_name(weights) if isinstance(weights, str) else weights
         _subsample = self.get_subsample(subsample)
-        plot_trend(x[_subsample], y[_subsample], ax=ax, **kwargs)
+        plot_trend(x[_subsample], y[_subsample], ax=ax, weights=weights[_subsample], **kwargs)
         ax.set_xlabel(x_name)
         ax.set_ylabel(y_name)
         ax.legend()
@@ -146,8 +150,10 @@ class Dataset:
 
         x = self.get_data_by_name(x_name)
         y = self.get_data_by_name(y_name)
+        weights = kwargs.pop('weights', None) 
+        weights = self.get_data_by_name(weights) if isinstance(weights, str) else weights
         _subsample = self.get_subsample(subsample)
-        plot_contour(x[_subsample], y[_subsample], ax=ax, **kwargs)
+        plot_contour(x[_subsample], y[_subsample], ax=ax, weights=weights[_subsample], **kwargs)
         ax.set_xlabel(x_name)
         ax.set_ylabel(y_name)
 
@@ -209,8 +215,6 @@ class Dataset:
                        **kwargs):
 
         # TODO: contour plot bin by the third variable
-        # TODO: subsample deal with weight
-        # TODO: can set color, weight ... by name
 
         x_names = string_to_list(x_names)
         y_names = string_to_list(y_names)
