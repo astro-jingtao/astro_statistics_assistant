@@ -221,7 +221,6 @@ class Dataset:
                        kind,
                        x_names,
                        y_names,
-                       subsample=None,
                        axes=None,
                        subplots_kwargs=None,
                        **kwargs):
@@ -288,13 +287,11 @@ class Dataset:
             self.method_mapping[kind](x_names[j],
                                       y_names[i],
                                       ax,
-                                      subsample=subsample,
                                       **this_kwargs)
 
     def trend(self,
               x_names,
               y_names,
-              subsample=None,
               axes=None,
               subplots_kwargs=None,
               **kwargs):
@@ -302,7 +299,6 @@ class Dataset:
         self.plot_xygeneral('trend',
                             x_names,
                             y_names,
-                            subsample=subsample,
                             axes=axes,
                             subplots_kwargs=subplots_kwargs,
                             **kwargs)
@@ -310,7 +306,6 @@ class Dataset:
     def contour(self,
                 x_names,
                 y_names,
-                subsample=None,
                 axes=None,
                 subplots_kwargs=None,
                 **kwargs):
@@ -318,7 +313,6 @@ class Dataset:
         self.plot_xygeneral('contour',
                             x_names,
                             y_names,
-                            subsample=subsample,
                             axes=axes,
                             subplots_kwargs=subplots_kwargs,
                             **kwargs)
