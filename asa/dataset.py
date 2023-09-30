@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from .plot_methods import plot_contour, plot_trend, plot_corner, plot_scatter
 from .utils import string_to_list, is_string_or_list_of_string
 
+
 class Dataset:
 
     # TODO: histogram, scatter, etc.
@@ -26,10 +27,10 @@ class Dataset:
         else:
             if names is None:
                 names = [f'x{i}' for i in range(data.shape[1])]
-        
+
         if labels is None:
             labels = names
-            
+
         self.data = np.asarray(data)
         self.names = np.asarray(names)
         self.labels = np.asarray(labels)
@@ -136,11 +137,16 @@ class Dataset:
 
         x = self.get_data_by_name(x_name)
         y = self.get_data_by_name(y_name)
-        weights = kwargs.pop('weights', None) 
-        weights = self.get_data_by_name(weights) if isinstance(weights, str) else weights
-        if weights is None: weights = np.ones_like(x)
         _subsample = self.get_subsample(subsample)
-        plot_trend(x[_subsample], y[_subsample], ax=ax, weights=weights[_subsample], **kwargs)
+        weights = kwargs.pop('weights', None)
+        weights = self.get_data_by_name(weights) if isinstance(
+            weights, str) else weights
+        _weights = weights[_subsample] if weights is not None else None
+        plot_trend(x[_subsample],
+                   y[_subsample],
+                   ax=ax,
+                   weights=_weights,
+                   **kwargs)
         ax.set_xlabel(x_name)
         ax.set_ylabel(y_name)
         ax.legend()
@@ -151,13 +157,19 @@ class Dataset:
 
         x = self.get_data_by_name(x_name)
         y = self.get_data_by_name(y_name)
-        weights = kwargs.pop('weights', None) 
-        weights = self.get_data_by_name(weights) if isinstance(weights, str) else weights
-        if weights is None: weights = np.ones_like(x)
         _subsample = self.get_subsample(subsample)
-        plot_contour(x[_subsample], y[_subsample], ax=ax, weights=weights[_subsample], **kwargs)
+        weights = kwargs.pop('weights', None)
+        weights = self.get_data_by_name(weights) if isinstance(
+            weights, str) else weights
+        _weights = weights[_subsample] if weights is not None else None
+        plot_contour(x[_subsample],
+                     y[_subsample],
+                     ax=ax,
+                     weights=_weights,
+                     **kwargs)
         ax.set_xlabel(x_name)
         ax.set_ylabel(y_name)
+
 
 
     def _scatter(self, x_name, y_name, ax, subsample=None, **kwargs):
@@ -166,14 +178,16 @@ class Dataset:
 
         x = self.get_data_by_name(x_name)
         y = self.get_data_by_name(y_name)
-        weights = kwargs.pop('weights', None) 
-        weights = self.get_data_by_name(weights) if isinstance(weights, str) else weights
-        if weights is None: weights = np.ones_like(x)
         _subsample = self.get_subsample(subsample)
-        plot_scatter(x[_subsample], y[_subsample], ax=ax, weights=weights[_subsample], **kwargs)
+        weights = kwargs.pop('weights', None)
+        weights = self.get_data_by_name(weights) if isinstance(
+            weights, str) else weights
+        _weights = weights[_subsample] if weights is not None else None
+        plot_scatter(x[_subsample], y[_subsample], ax=ax, weights=_weights, **kwargs)
         ax.set_xlabel(x_name)
         ax.set_ylabel(y_name)
         ax.legend()
+
 
     def get_subsample(self, subsample):  # sourcery skip: lift-return-into-if
 
@@ -226,7 +240,6 @@ class Dataset:
                        kind,
                        x_names,
                        y_names,
-                       subsample=None,
                        axes=None,
                        subplots_kwargs=None,
                        **kwargs):
@@ -251,7 +264,6 @@ class Dataset:
         if subplots_kwargs is None:
             subplots_kwargs = {}
 
-        
         if axes is None:
             if scatter_type == 'xy':
                 fig, axes = auto_subplots(n1, n2, **subplots_kwargs)
@@ -264,7 +276,6 @@ class Dataset:
 
         # find fig by axes
         fig = axes.flatten()[0].get_figure()
-        
 
         same_key = {}
         each_key = {}
@@ -285,30 +296,21 @@ class Dataset:
             this_kwargs = same_key.copy()
 
             for key in each_key:
-                this_kwargs[key] = each_key[key][j][i]
-            if scatter_type == 'xy':
-                self.method_mapping[kind](x_names[j],
-                                          y_names[i],
-                                          ax,
-                                          subsample=subsample,
-                                          **this_kwargs)
-            elif scatter_type in ['x', 'single']:
-                self.method_mapping[kind](x_names[j],
-                                          y_names[0],
-                                          ax,
-                                          subsample=subsample,
-                                          **this_kwargs)
-            elif scatter_type == 'y':
-                self.method_mapping[kind](x_names[0],
-                                          y_names[i],
-                                          ax,
-                                          subsample=subsample,
-                                          **this_kwargs)
-          
+                if scatter_type == 'xy':
+                    this_kwargs[key] = each_key[key][i][j]
+                elif scatter_type in ['x', 'single']:
+                    this_kwargs[key] = each_key[key][0][j]
+                elif scatter_type == 'y':
+                    this_kwargs[key] = each_key[key][0][i]
+
+            self.method_mapping[kind](x_names[j],
+                                      y_names[i],
+                                      ax,
+                                      **this_kwargs)
+
     def trend(self,
               x_names,
               y_names,
-              subsample=None,
               axes=None,
               subplots_kwargs=None,
               **kwargs):
@@ -316,7 +318,6 @@ class Dataset:
         self.plot_xygeneral('trend',
                             x_names,
                             y_names,
-                            subsample=subsample,
                             axes=axes,
                             subplots_kwargs=subplots_kwargs,
                             **kwargs)
@@ -324,7 +325,6 @@ class Dataset:
     def contour(self,
                 x_names,
                 y_names,
-                subsample=None,
                 axes=None,
                 subplots_kwargs=None,
                 **kwargs):
@@ -332,11 +332,10 @@ class Dataset:
         self.plot_xygeneral('contour',
                             x_names,
                             y_names,
-                            subsample=subsample,
                             axes=axes,
                             subplots_kwargs=subplots_kwargs,
                             **kwargs)
-        
+
     def corner(self, names=None, axes=None, **kwargs):
         '''
         Plot the corner plot.
@@ -347,10 +346,10 @@ class Dataset:
         return plot_corner(xs, **kwargs)
 
 
+
     def scatter(self,
                 x_names,
                 y_names,
-                subsample=None,
                 axes=None,
                 subplots_kwargs=None,
                 **kwargs):
@@ -358,7 +357,6 @@ class Dataset:
         self.plot_xygeneral('scatter',
                             x_names,
                             y_names,
-                            subsample=subsample,
                             axes=axes,
                             subplots_kwargs=subplots_kwargs,
                             **kwargs)
