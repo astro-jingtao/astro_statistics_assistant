@@ -1,5 +1,7 @@
 import numpy as np
+from scipy.stats import binned_statistic
 
+_range = range
 
 def flag_bad(x):
     """
@@ -15,9 +17,20 @@ def flag_bad(x):
 def string_to_list(string):
     return [string] if isinstance(string, str) else string
 
+
 def is_string_or_list_of_string(x):
-    return (
-        isinstance(x, str)
-        or isinstance(x, list)
-        and all(isinstance(y, str) for y in x)
-    )
+    return (isinstance(x, str)
+            or isinstance(x, list) and all(isinstance(y, str) for y in x))
+
+
+def weighted_binned_statistic(x, y, w, bins=10, statistic=None, range=None):
+    _, edges, bin_index = binned_statistic(x,
+                                           y,
+                                           statistic='count',
+                                           bins=bins,
+                                           range=range)
+
+    return np.array([
+        statistic(y[bin_index == i], w[bin_index == i])
+        for i in _range(1, len(edges))
+    ])
