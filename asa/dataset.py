@@ -225,7 +225,8 @@ class Dataset:
                        subplots_kwargs=None,
                        **kwargs):
 
-        # TODO: contour plot bin by the third variable
+        # TODO: bin by the third variable
+        # TODO: No broadcast option
 
         x_names = string_to_list(x_names)
         y_names = string_to_list(y_names)
