@@ -4,7 +4,7 @@ from typing import Union, List
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from .plot_methods import plot_contour, plot_trend, plot_corner
+from .plot_methods import plot_contour, plot_trend, plot_corner, plot_scatter
 from .utils import string_to_list, is_string_or_list_of_string
 
 class Dataset:
@@ -33,7 +33,7 @@ class Dataset:
         self.data = np.asarray(data)
         self.names = np.asarray(names)
         self.labels = np.asarray(labels)
-        self.method_mapping = {'trend': self._trend, 'contour': self._contour}
+        self.method_mapping = {'trend': self._trend, 'contour': self._contour, 'scatter': self._scatter}
 
     def __getitem__(self, key) -> np.ndarray:
         '''
@@ -138,6 +138,7 @@ class Dataset:
         y = self.get_data_by_name(y_name)
         weights = kwargs.pop('weights', None) 
         weights = self.get_data_by_name(weights) if isinstance(weights, str) else weights
+        if weights is None: weights = np.ones_like(x)
         _subsample = self.get_subsample(subsample)
         plot_trend(x[_subsample], y[_subsample], ax=ax, weights=weights[_subsample], **kwargs)
         ax.set_xlabel(x_name)
@@ -152,11 +153,27 @@ class Dataset:
         y = self.get_data_by_name(y_name)
         weights = kwargs.pop('weights', None) 
         weights = self.get_data_by_name(weights) if isinstance(weights, str) else weights
+        if weights is None: weights = np.ones_like(x)
         _subsample = self.get_subsample(subsample)
         plot_contour(x[_subsample], y[_subsample], ax=ax, weights=weights[_subsample], **kwargs)
         ax.set_xlabel(x_name)
         ax.set_ylabel(y_name)
 
+
+    def _scatter(self, x_name, y_name, ax, subsample=None, **kwargs):
+
+        # TODO: label, etc.
+
+        x = self.get_data_by_name(x_name)
+        y = self.get_data_by_name(y_name)
+        weights = kwargs.pop('weights', None) 
+        weights = self.get_data_by_name(weights) if isinstance(weights, str) else weights
+        if weights is None: weights = np.ones_like(x)
+        _subsample = self.get_subsample(subsample)
+        plot_scatter(x[_subsample], y[_subsample], ax=ax, weights=weights[_subsample], **kwargs)
+        ax.set_xlabel(x_name)
+        ax.set_ylabel(y_name)
+        ax.legend()
 
     def get_subsample(self, subsample):  # sourcery skip: lift-return-into-if
 
@@ -330,6 +347,21 @@ class Dataset:
         return plot_corner(xs, **kwargs)
 
 
+    def scatter(self,
+                x_names,
+                y_names,
+                subsample=None,
+                axes=None,
+                subplots_kwargs=None,
+                **kwargs):
+
+        self.plot_xygeneral('scatter',
+                            x_names,
+                            y_names,
+                            subsample=subsample,
+                            axes=axes,
+                            subplots_kwargs=subplots_kwargs,
+                            **kwargs)
 
 def auto_subplots(n1, n2=None, figshape=None, figsize=None, dpi=400):
     if figshape is None:

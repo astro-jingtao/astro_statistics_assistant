@@ -103,8 +103,8 @@ def plot_trend(x,
 
     if prop_kwargs is not None:
         props = prop_kwargs["props"]
-        pmin = prop_kwargs["pmin"]
-        pmax = prop_kwargs["pmax"]
+        pmin = prop_kwargs.get("pmin", min(props))
+        pmax = prop_kwargs.get("pmax", max(props))
         prop_index = (props >= pmin) & (props <= pmax)
         x = x[prop_index]
         y = y[prop_index]
@@ -185,6 +185,46 @@ def plot_trend(x,
         elif fkind == "fbetween":
             ax.fill_between(loads[:, 0], loads[:, 3], loads[:, 2],
                             **plot_scatter_kwargs)
+
+
+
+def plot_scatter(x,
+                 y,
+                 fig=None,
+                 ax=None,
+                 range=None,
+                 auto_p=None,
+                 weights=None,
+                 plot_kwargs=None):
+
+    bad = flag_bad(x) | flag_bad(y)
+    x = x[~bad]
+    y = y[~bad]
+
+    if range is None:
+        xrange = [x.min(), x.max()]
+        yrange = [y.min(), y.max()]
+    elif range == 'auto':
+        if auto_p is None:
+            auto_p = ([1, 99], [1, 99])
+        xrange = [
+            np.percentile(x, auto_p[0][0]),
+            np.percentile(x, auto_p[0][1])
+        ]
+        yrange = [
+            np.percentile(y, auto_p[1][0]),
+            np.percentile(y, auto_p[1][1])
+        ]
+    else:
+        xrange = range[:][0]
+        yrange = range[:][1]
+
+    is_in_range = (x > xrange[0]) & (x < xrange[1]) & (y > yrange[0]) & (y < yrange[1])
+    if weights is None:
+        weights = np.ones_like(x)
+
+    ax.scatter(x[is_in_range], y[is_in_range], **plot_kwargs)
+
 
 
 def plot_corner(xs,
