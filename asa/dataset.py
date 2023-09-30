@@ -67,6 +67,11 @@ class Dataset:
             return self.data[:, key_idx]
         else:
             return self.data[key]
+        
+    def __setitem__(self, keys, values) -> None:
+
+        # TODO: reassign existed columns
+        self.add_col(values, keys, keys)
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -86,11 +91,17 @@ class Dataset:
 
     def add_col(self, new_cols, new_names, new_labels) -> None:
 
+        new_names = string_to_list(new_names)
+        new_labels = string_to_list(new_labels)
+
+        for name in new_names:
+            if name in self.names:
+                raise ValueError(f'{name} already exists in the dataset')
+
         new_cols = np.asarray(new_cols)
         if new_cols.ndim == 1:
             new_cols = new_cols[:, np.newaxis]
-        new_names = string_to_list(new_names)
-        new_labels = string_to_list(new_labels)
+        
 
         self.data = np.hstack((self.data, new_cols))
         self.names = np.asarray(list(self.names) + list(new_names))
