@@ -19,7 +19,7 @@ def plot_trend(x,
                scatter_kwargs=None,
                plot_scatter_kwargs=None,
                plot_kwargs=None):
-    # TODO: support weights
+    # TODO: should clear the code ...
     """
     Make a plot to show the trend between x and y
 
