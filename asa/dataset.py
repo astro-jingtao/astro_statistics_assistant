@@ -2,6 +2,7 @@ import itertools
 import re
 from typing import Union, List
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 from .plot_methods import plot_contour, plot_trend, plot_corner
 from .utils import string_to_list, is_string_or_list_of_string
@@ -13,11 +14,22 @@ class Dataset:
 
     OP_MAP = {'log10': np.log10}
 
-    def __init__(self, data, names, labels) -> None:
-
+    def __init__(self, data, names=None, labels=None) -> None:
         # TODO: ranges
-        # TODO: read pandas DF
 
+        # if data is pandas DF, convert it to numpy array
+        # sourcery skip: merge-else-if-into-elif
+        if isinstance(data, pd.DataFrame):
+            if names is None:
+                names = data.columns
+            data = data.to_numpy()
+        else:
+            if names is None:
+                names = [f'x{i}' for i in range(data.shape[1])]
+        
+        if labels is None:
+            labels = names
+            
         self.data = np.asarray(data)
         self.names = np.asarray(names)
         self.labels = np.asarray(labels)
