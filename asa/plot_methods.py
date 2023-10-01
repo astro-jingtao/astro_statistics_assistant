@@ -362,4 +362,6 @@ def plot_heatmap(x,
         if pcolor_kwargs is None:
             pcolor_kwargs = {}        
 
+        # Maybe use pcolormesh for high performance?
+        # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.pcolormesh.html#differences-pcolor-pcolormesh
         ax.pcolor(x_edges, y_edges, Z, **pcolor_kwargs)
