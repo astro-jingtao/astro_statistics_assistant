@@ -4,7 +4,7 @@ from typing import Union, List
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from .plot_methods import plot_contour, plot_trend, plot_corner, plot_scatter
+from .plot_methods import plot_contour, plot_trend, plot_corner, plot_scatter, plot_heatmap
 from .utils import string_to_list, is_string_or_list_of_string
 
 
@@ -19,7 +19,7 @@ class Dataset:
     def __init__(self, data, names=None, labels=None) -> None:
         # TODO: ranges
 
-        # if data is pandas DF, convert it to numpy array
+        # If data is pandas DF, convert it to numpy array
         # sourcery skip: merge-else-if-into-elif
         if isinstance(data, pd.DataFrame):
             if names is None:
@@ -38,7 +38,8 @@ class Dataset:
         self.method_mapping = {
             'trend': self._trend,
             'contour': self._contour,
-            'scatter': self._scatter
+            'scatter': self._scatter,
+            'heatmap': self._heatmap
         }
 
     def __getitem__(self, key) -> np.ndarray:
@@ -178,6 +179,44 @@ class Dataset:
         self._set_ax_prperties(ax, x_name, y_name, xlabel, ylabel, title, xlim,
                                ylim)
         ax.legend()
+
+    def _heatmap(self,
+                 x_name,
+                 y_name,
+                 ax,
+                 z_name=None,
+                 subsample=None,
+                 xlabel=None,
+                 ylabel=None,
+                 title=None,
+                 xlim=None,
+                 ylim=None,
+                 **kwargs):
+        
+        x = self.get_data_by_name(x_name)
+        y = self.get_data_by_name(y_name)
+
+        if z_name is None:
+            z_name = np.ones_like(x)
+            print("z_name is not specified, use np.ones_like(x) instead")
+            print("I think you'd like to specify z_name")
+        
+        z = self.get_data_by_name(z_name)
+
+        _subsample = self.get_subsample(subsample)
+        weights = kwargs.pop('weights', None)
+        weights = self.get_data_by_name(weights) if isinstance(
+            weights, str) else weights
+        _weights = weights[_subsample] if weights is not None else None
+        plot_heatmap(x[_subsample],
+                     y[_subsample],
+                     z[_subsample],
+                     ax=ax,
+                     weights=_weights,
+                     **kwargs)
+
+        self._set_ax_prperties(ax, x_name, y_name, xlabel, ylabel, title, xlim,
+                               ylim)
 
     def _contour(self,
                  x_name,
@@ -456,6 +495,19 @@ class Dataset:
                 **kwargs):
 
         self.plot_xygeneral('scatter',
+                            x_names,
+                            y_names,
+                            axes=axes,
+                            subplots_kwargs=subplots_kwargs,
+                            **kwargs)
+        
+    def heatmap(self,
+                x_names,
+                y_names,
+                axes=None,
+                subplots_kwargs=None,
+                **kwargs):
+        self.plot_xygeneral('heatmap',
                             x_names,
                             y_names,
                             axes=axes,

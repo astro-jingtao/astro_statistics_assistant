@@ -335,17 +335,20 @@ def plot_contour(x,
 def plot_heatmap(x,
                  y,
                  z,
+                 weights=None,
                  ax=None,
                  bins=10,
-                 xlabel='x',
-                 ylabel='y',
-                 vmax=None,
-                 vmin=None,
-                 cmap='seismic',
                  min_data=0,
                  range=None,
-                 **kwargs):
+                 kind='pcolor',
+                 pcolor_kwargs=None):
+    """
+    kind: 'pcolor' or 'contour'
+    """
     # TODO: support contour line
+    # TODO: z_range
+    
+
     X, Y, Z, x_edges, y_edges = bin_2d(x,
                                        y,
                                        z,
@@ -355,11 +358,8 @@ def plot_heatmap(x,
     if ax is None:
         ax = plt.gca()
 
-    ax.pcolor(x_edges,
-              y_edges,
-              Z,
-              alpha=0.7,
-              cmap=cmap,
-              vmax=vmax,
-              vmin=vmin,
-              **kwargs)
+    if kind == 'pcolor':
+        if pcolor_kwargs is None:
+            pcolor_kwargs = {}        
+
+        ax.pcolor(x_edges, y_edges, Z, **pcolor_kwargs)
