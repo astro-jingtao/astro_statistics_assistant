@@ -148,6 +148,9 @@ class Dataset:
         else:
             return self[name]
 
+    def get_label_by_name(self, name):
+        return self.labels[self.names == name][0]
+
     def _trend(self,
                x_name,
                y_name,
@@ -172,8 +175,8 @@ class Dataset:
                    ax=ax,
                    weights=_weights,
                    **kwargs)
-        self._set_ax_prperties(ax, x_name, y_name, xlabel, ylabel, title,
-                               xlim, ylim)
+        self._set_ax_prperties(ax, x_name, y_name, xlabel, ylabel, title, xlim,
+                               ylim)
         ax.legend()
 
     def _contour(self,
@@ -225,8 +228,8 @@ class Dataset:
                      weights=_weights,
                      **kwargs)
 
-        self._set_ax_prperties(ax, x_name, y_name, xlabel, ylabel, title,
-                               xlim, ylim)
+        self._set_ax_prperties(ax, x_name, y_name, xlabel, ylabel, title, xlim,
+                               ylim)
 
     def _set_ax_prperties(self, ax, x_name, y_name, xlabel, ylabel, title,
                           xlim, ylim):
@@ -235,12 +238,12 @@ class Dataset:
 
         if xlabel is not False:
             if xlabel is None:
-                xlabel = self.labels[self.names == x_name][0]
+                xlabel = self.get_label_by_name(x_name)
             ax.set_xlabel(xlabel)
 
         if ylabel is not False:
             if ylabel is None:
-                ylabel = self.labels[self.names == y_name][0]
+                ylabel = self.get_label_by_name(y_name)
             ax.set_ylabel(ylabel)
 
         if xlim is not None:
@@ -273,8 +276,8 @@ class Dataset:
                      ax=ax,
                      weights=_weights,
                      **kwargs)
-        self._set_ax_prperties(ax, x_name, y_name, xlabel, ylabel, title,
-                               xlim, ylim)
+        self._set_ax_prperties(ax, x_name, y_name, xlabel, ylabel, title, xlim,
+                               ylim)
         ax.legend()
 
     def get_subsample(self, subsample):  # sourcery skip: lift-return-into-if
@@ -430,13 +433,20 @@ class Dataset:
                             **kwargs)
 
     def corner(self, names=None, axes=None, **kwargs):
-        '''
-        Plot the corner plot.
-        '''
+        if names is None:
+            names = self.names
 
-        # TODO: auto set labels
+        if 'labels' not in kwargs:
+            kwargs['labels'] = [self.get_label_by_name(name) for name in names]
+
+        if axes is not None:
+            axes = np.atleast_1d(axes)
+            fig = axes.flatten()[0].get_figure()
+        else:
+            fig = None
+
         xs = np.array([self.get_data_by_name(name) for name in names]).T
-        return plot_corner(xs, **kwargs)
+        return plot_corner(xs, fig=fig, **kwargs)
 
     def scatter(self,
                 x_names,
