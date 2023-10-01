@@ -12,6 +12,7 @@ class Dataset:
 
     # TODO: histogram, scatter, etc.
     # TODO: heatmap
+    # TODO: control 1D/2D
 
     OP_MAP = {'log10': np.log10, 'square': np.square}
 
@@ -83,11 +84,13 @@ class Dataset:
         summary_string += f'  Labels: {str(self.labels)}' + '\n'
         return summary_string
 
-    def summary(self) -> None:
+    def to_pandas(self):
+        return pd.DataFrame(self.data, columns=self.names)
 
-        # TODO: math summary?
-
+    def summary(self, stats_info=False) -> None:
         print(self.__str__())
+        if stats_info:
+            print(self.to_pandas().describe())
 
     def add_col(self, new_cols, new_names, new_labels) -> None:
 
@@ -296,8 +299,13 @@ class Dataset:
             if key.endswith('_each'):
                 key_single = key[:-5]
                 each_key[key_single] = kwargs[key]
-                # TODO: corner case: range = [[1, 2], [1, 2]]
-                # if is 1D list, convert it to 2D list
+                # If it is 1D list, convert it to 2D list
+                '''
+                Note that this code can not solve all problems
+                Corner case: range = [[1, 2], [1, 2]]
+                No plan to deal with such corner case
+                If anyone has a good idea, please let me know
+                '''
                 if not isinstance(each_key[key_single][0], list):
                     each_key[key_single] = [each_key[key_single]]
             else:
