@@ -35,7 +35,11 @@ class Dataset:
         self.data = np.asarray(data)
         self.names = np.asarray(names)
         self.labels = np.asarray(labels)
-        self.method_mapping = {'trend': self._trend, 'contour': self._contour, 'scatter': self._scatter}
+        self.method_mapping = {
+            'trend': self._trend,
+            'contour': self._contour,
+            'scatter': self._scatter
+        }
 
     def __getitem__(self, key) -> np.ndarray:
         '''
@@ -68,7 +72,7 @@ class Dataset:
             return self.data[:, key_idx]
         else:
             return self.data[key]
-        
+
     def __setitem__(self, keys, values) -> None:
 
         # TODO: reassign existed columns
@@ -104,7 +108,6 @@ class Dataset:
         new_cols = np.asarray(new_cols)
         if new_cols.ndim == 1:
             new_cols = new_cols[:, np.newaxis]
-        
 
         self.data = np.hstack((self.data, new_cols))
         self.names = np.asarray(list(self.names) + list(new_names))
@@ -145,9 +148,17 @@ class Dataset:
         else:
             return self[name]
 
-    def _trend(self, x_name, y_name, ax, subsample=None, **kwargs):
-
-        # TODO: label, etc.
+    def _trend(self,
+               x_name,
+               y_name,
+               ax,
+               subsample=None,
+               xlabel=None,
+               ylabel=None,
+               title=None,
+               xlim=None,
+               ylim=None,
+               **kwargs):
 
         x = self.get_data_by_name(x_name)
         y = self.get_data_by_name(y_name)
@@ -161,13 +172,45 @@ class Dataset:
                    ax=ax,
                    weights=_weights,
                    **kwargs)
-        ax.set_xlabel(x_name)
-        ax.set_ylabel(y_name)
+        self._set_ax_prperties(ax, x_name, y_name, xlabel, ylabel, title,
+                               xlim, ylim)
         ax.legend()
 
-    def _contour(self, x_name, y_name, ax, subsample=None, **kwargs):
+    def _contour(self,
+                 x_name,
+                 y_name,
+                 ax,
+                 subsample=None,
+                 xlabel=None,
+                 ylabel=None,
+                 title=None,
+                 xlim=None,
+                 ylim=None,
+                 **kwargs):
+        '''
+        xlabel:
+            If False, do not set xlabel
+            If None, set from self.labels
+            If string, set as xlabel
+        
+        ylabel:
+            If False, do not set ylabel
+            If None, set from self.labels
+            If string, set as ylabel
 
-        # TODO: labels, titles, ranges, etc.
+        title:
+            If None or False, do not set title
+            If string, set as title
+
+        xlim:
+            If None, do not set xlim
+            If list, set as xlim
+
+        ylim:
+            If None, do not set ylim
+            If list, set as ylim
+
+        '''
 
         x = self.get_data_by_name(x_name)
         y = self.get_data_by_name(y_name)
@@ -181,14 +224,42 @@ class Dataset:
                      ax=ax,
                      weights=_weights,
                      **kwargs)
-        ax.set_xlabel(x_name)
-        ax.set_ylabel(y_name)
 
+        self._set_ax_prperties(ax, x_name, y_name, xlabel, ylabel, title,
+                               xlim, ylim)
 
+    def _set_ax_prperties(self, ax, x_name, y_name, xlabel, ylabel, title,
+                          xlim, ylim):
+        if (title is not False) and (title is not None):
+            ax.set_title(title)
 
-    def _scatter(self, x_name, y_name, ax, subsample=None, **kwargs):
+        if xlabel is not False:
+            if xlabel is None:
+                xlabel = self.labels[self.names == x_name][0]
+            ax.set_xlabel(xlabel)
 
-        # TODO: label, etc.
+        if ylabel is not False:
+            if ylabel is None:
+                ylabel = self.labels[self.names == y_name][0]
+            ax.set_ylabel(ylabel)
+
+        if xlim is not None:
+            ax.set_xlim(xlim)
+
+        if ylim is not None:
+            ax.set_ylim(ylim)
+
+    def _scatter(self,
+                 x_name,
+                 y_name,
+                 ax,
+                 subsample=None,
+                 xlabel=None,
+                 ylabel=None,
+                 title=None,
+                 xlim=None,
+                 ylim=None,
+                 **kwargs):
 
         x = self.get_data_by_name(x_name)
         y = self.get_data_by_name(y_name)
@@ -197,11 +268,14 @@ class Dataset:
         weights = self.get_data_by_name(weights) if isinstance(
             weights, str) else weights
         _weights = weights[_subsample] if weights is not None else None
-        plot_scatter(x[_subsample], y[_subsample], ax=ax, weights=_weights, **kwargs)
-        ax.set_xlabel(x_name)
-        ax.set_ylabel(y_name)
+        plot_scatter(x[_subsample],
+                     y[_subsample],
+                     ax=ax,
+                     weights=_weights,
+                     **kwargs)
+        self._set_ax_prperties(ax, x_name, y_name, xlabel, ylabel, title,
+                               xlim, ylim)
         ax.legend()
-
 
     def get_subsample(self, subsample):  # sourcery skip: lift-return-into-if
 
@@ -324,9 +398,7 @@ class Dataset:
                 elif scatter_type == 'y':
                     this_kwargs[key] = each_key[key][0][i]
 
-            self.method_mapping[kind](x_names[j],
-                                      y_names[i],
-                                      ax,
+            self.method_mapping[kind](x_names[j], y_names[i], ax,
                                       **this_kwargs)
 
     def trend(self,
@@ -366,8 +438,6 @@ class Dataset:
         xs = np.array([self.get_data_by_name(name) for name in names]).T
         return plot_corner(xs, **kwargs)
 
-
-
     def scatter(self,
                 x_names,
                 y_names,
@@ -381,6 +451,7 @@ class Dataset:
                             axes=axes,
                             subplots_kwargs=subplots_kwargs,
                             **kwargs)
+
 
 def auto_subplots(n1, n2=None, figshape=None, figsize=None, dpi=400):
     if figshape is None:
