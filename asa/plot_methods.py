@@ -7,6 +7,9 @@ import matplotlib.pyplot as plt
 from .Bcorner import corner, hist2d, quantile
 from .utils import flag_bad, weighted_binned_statistic, bin_2d
 
+# TODO: extract common code
+# - flag and remove bad
+# - auto set range
 
 def plot_trend(x,
                y,
@@ -340,14 +343,19 @@ def plot_heatmap(x,
                  bins=10,
                  min_data=0,
                  range=None,
-                 kind='pcolor',
-                 pcolor_kwargs=None):
+                 map_kind='pcolor',
+                 pcolor_kwargs=None,
+                 contour_kwargs=None):
     """
     kind: 'pcolor' or 'contour'
     """
-    # TODO: support contour line
     # TODO: z_range
-    
+    # TODO: weights
+
+    bad = flag_bad(x) | flag_bad(y) | flag_bad(z)
+    x = x[~bad]
+    y = y[~bad]
+    z = z[~bad]
 
     X, Y, Z, x_edges, y_edges = bin_2d(x,
                                        y,
@@ -358,10 +366,17 @@ def plot_heatmap(x,
     if ax is None:
         ax = plt.gca()
 
-    if kind == 'pcolor':
+    if map_kind == 'pcolor':
         if pcolor_kwargs is None:
             pcolor_kwargs = {}        
 
         # Maybe use pcolormesh for high performance?
         # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.pcolormesh.html#differences-pcolor-pcolormesh
         ax.pcolor(x_edges, y_edges, Z, **pcolor_kwargs)
+
+    elif map_kind == 'contour':
+
+        if contour_kwargs is None:
+            contour_kwargs = {}
+
+        ax.contour(X, Y, Z, **contour_kwargs)
