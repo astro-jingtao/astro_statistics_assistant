@@ -5,11 +5,10 @@ import matplotlib.pyplot as plt
 # from scipy.stats import binned_statistic
 
 from .Bcorner import corner, hist2d, quantile
-from .utils import flag_bad, weighted_binned_statistic, bin_2d
+from .utils import flag_bad, weighted_binned_statistic, bin_2d, auto_set_range
 
 # TODO: extract common code
 # - flag and remove bad
-# - auto set range
 
 def plot_trend(x,
                y,
@@ -26,7 +25,7 @@ def plot_trend(x,
                fkind="fbetween",
                prop_kwargs=None,
                plot_scatter_kwargs=None,
-               plot_kwargs=None):
+               plot_kwargs=None):  # sourcery skip: avoid-builtin-shadow
     """
     Make a plot to show the trend between x and y
 
@@ -117,23 +116,10 @@ def plot_trend(x,
     x = x[~bad]
     y = y[~bad]
 
-    if range is None:
-        xrange = [x.min(), x.max()]
-        yrange = [y.min(), y.max()]
-    elif range == 'auto':
-        if auto_p is None:
-            auto_p = ([1, 99], [1, 99])
-        xrange = [
-            np.percentile(x, auto_p[0][0]),
-            np.percentile(x, auto_p[0][1])
-        ]
-        yrange = [
-            np.percentile(y, auto_p[1][0]),
-            np.percentile(y, auto_p[1][1])
-        ]
-    else:
-        xrange = range[:][0]
-        yrange = range[:][1]
+    range = auto_set_range(x, y, range, auto_p)
+
+    xrange = range[0]
+    yrange = range[1]
 
     if weights is None:
         weights = np.ones_like(x)
@@ -198,29 +184,16 @@ def plot_scatter(x,
                  auto_p=None,
                  weights=None,
                  label=None,
-                 plot_kwargs=None):
+                 plot_kwargs=None):  # sourcery skip: avoid-builtin-shadow
 
     bad = flag_bad(x) | flag_bad(y)
     x = x[~bad]
     y = y[~bad]
 
-    if range is None:
-        xrange = [x.min(), x.max()]
-        yrange = [y.min(), y.max()]
-    elif range == 'auto':
-        if auto_p is None:
-            auto_p = ([1, 99], [1, 99])
-        xrange = [
-            np.percentile(x, auto_p[0][0]),
-            np.percentile(x, auto_p[0][1])
-        ]
-        yrange = [
-            np.percentile(y, auto_p[1][0]),
-            np.percentile(y, auto_p[1][1])
-        ]
-    else:
-        xrange = range[:][0]
-        yrange = range[:][1]
+    range = auto_set_range(x, y, range, auto_p)
+
+    xrange = range[0]
+    yrange = range[1]
 
     is_in_range = (x > xrange[0]) & (x < xrange[1]) & (y > yrange[0]) & (
         y < yrange[1])
@@ -348,9 +321,10 @@ def plot_heatmap(x,
                  bins=10,
                  min_data=0,
                  range=None,
+                 auto_p=None,
                  map_kind='pcolor',
                  pcolor_kwargs=None,
-                 contour_kwargs=None):
+                 contour_kwargs=None):  # sourcery skip: avoid-builtin-shadow
     """
     kind: 'pcolor' or 'contour'
     """
@@ -361,6 +335,8 @@ def plot_heatmap(x,
     x = x[~bad]
     y = y[~bad]
     z = z[~bad]
+
+    range = auto_set_range(x, y, range, auto_p)
 
     X, Y, Z, x_edges, y_edges = bin_2d(x,
                                        y,
