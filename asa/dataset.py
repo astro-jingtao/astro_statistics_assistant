@@ -317,7 +317,8 @@ class Dataset:
                      **kwargs)
         self._set_ax_prperties(ax, x_name, y_name, xlabel, ylabel, title, xlim,
                                ylim)
-        ax.legend()
+        if kwargs.get('label', None) is not None:
+            ax.legend()
 
     def get_subsample(self, subsample):  # sourcery skip: lift-return-into-if
 
