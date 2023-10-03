@@ -5,7 +5,6 @@ from asa.dataset import parse_inequality
 
 
 class TestGetitem:
-
     def test_getitem(self):
         x = np.arange(10)
         y = np.arange(10) * 2
@@ -53,10 +52,36 @@ class TestGetitem:
         dataset = Dataset(
             np.array([x, y, z]).T, ['x', 'y', 'z'],
             ['x label', 'y label', 'z label'])
-        
-        debug = False
-        
-        assert np.array_equal(dataset.inequality_to_subsample("x<5", debug=debug), np.array(x < 5))
-        assert np.array_equal(dataset.inequality_to_subsample("x<=5", debug=debug), np.array(x <= 5))
-        assert np.array_equal(dataset.inequality_to_subsample("x>y", debug=debug), np.array(x > y))
 
+        debug = False
+
+        assert np.array_equal(
+            dataset.inequality_to_subsample("x<5", debug=debug),
+            np.array(x < 5))
+        assert np.array_equal(
+            dataset.inequality_to_subsample("x<=5", debug=debug),
+            np.array(x <= 5))
+        assert np.array_equal(
+            dataset.inequality_to_subsample("x>y", debug=debug),
+            np.array(x > y))
+
+    def test_check_same_length(self):
+
+        x = np.arange(10)
+        y = np.arange(10) * 2
+        z = np.arange(10) * 3
+
+        with pytest.raises(ValueError) as excinfo:
+            Dataset(
+                np.array([x, y, z]).T, ['x', 'y'],
+                ['x label', 'y label', 'z label'])
+        assert 'data and names have different length' == str(excinfo.value)
+
+        with pytest.raises(ValueError) as excinfo:
+            Dataset(
+                np.array([x, y, z]).T, ['x', 'y', 'z'], ['x label', 'y label'])
+        assert 'data and labels have different length' == str(excinfo.value)
+
+        Dataset(
+                np.array([x, y, z]).T, ['x', 'y', 'z'],
+                ['x label', 'y label', 'z label'])
