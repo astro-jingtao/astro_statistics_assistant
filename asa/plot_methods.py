@@ -197,6 +197,7 @@ def plot_scatter(x,
                  range=None,
                  auto_p=None,
                  weights=None,
+                 label=None,
                  plot_kwargs=None):
 
     bad = flag_bad(x) | flag_bad(y)
@@ -223,10 +224,14 @@ def plot_scatter(x,
 
     is_in_range = (x > xrange[0]) & (x < xrange[1]) & (y > yrange[0]) & (
         y < yrange[1])
-    if weights is None:
-        weights = np.ones_like(x)
+    
+    # if weights is None:
+    #     weights = np.ones_like(x)
 
-    ax.scatter(x[is_in_range], y[is_in_range], **plot_kwargs)
+    if plot_kwargs is None:
+        plot_kwargs = {}
+
+    ax.scatter(x[is_in_range], y[is_in_range], label=label, **plot_kwargs)
 
 
 def plot_corner(xs,
