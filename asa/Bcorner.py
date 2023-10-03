@@ -10,7 +10,7 @@ from matplotlib.ticker import MaxNLocator, NullLocator
 from matplotlib.colors import LinearSegmentedColormap, colorConverter
 from matplotlib.ticker import ScalarFormatter
 
-from .utils import flag_bad
+from .utils import flag_bad, auto_set_range
 
 try:
     from scipy.ndimage import gaussian_filter
@@ -667,23 +667,7 @@ def hist2d(x,
     if ax is None:
         ax = pl.gca()
 
-    # Set the default range based on the data range if not provided.
-    if range is None:
-        if "extent" in kwargs:
-            logging.warn("Deprecated keyword argument 'extent'. "
-                         "Use 'range' instead.")
-            range = kwargs["extent"]
-        else:
-            range = [[x.min(), x.max()], [y.min(), y.max()]]
-
-    if range == 'auto':
-        if auto_p is None:
-            auto_p = ([1, 99], [1, 99])
-        range = [[
-            np.percentile(x, auto_p[0][0]),
-            np.percentile(x, auto_p[0][1])
-        ], [np.percentile(y, auto_p[1][0]),
-            np.percentile(y, auto_p[1][1])]]
+    range = auto_set_range(x, y, range, auto_p)
 
     # Set up the default plotting arguments.
     if color is None:
