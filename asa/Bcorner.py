@@ -725,7 +725,12 @@ def hist2d(x,
     # Compute the bin centers.
     X1, Y1 = 0.5 * (X[1:] + X[:-1]), 0.5 * (Y[1:] + Y[:-1])
 
-    # TODO: if use KDE, we do not need np.histogram2d
+    """ 
+    If use KDE, we do not need np.histogram2d in principle
+    But no elegent implementation found for that
+    So we still use np.histogram2d
+    If anyone has a good idea, please let me know
+    """
     if kde_smooth:
         XX, YY = np.meshgrid(X1, Y1, indexing='xy')
         positions = np.vstack([XX.ravel(), YY.ravel()])
