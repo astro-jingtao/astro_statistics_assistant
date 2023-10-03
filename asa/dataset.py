@@ -214,8 +214,7 @@ class BasicDataset:
 
 class Dataset(BasicDataset):
 
-    # TODO: histogram, scatter, etc.
-    # TODO: heatmap
+    # TODO: histogram
     # TODO: control 1D/2D
 
     def __init__(self, data, names=None, labels=None) -> None:
@@ -397,6 +396,52 @@ class Dataset(BasicDataset):
         if kwargs.get('label', None) is not None:
             ax.legend()
 
+    def plot_xygeneral_no_broadcast(self,
+                                    kind,
+                                    x_names,
+                                    y_names,
+                                    axes=None,
+                                    subplots_kwargs=None,
+                                    **kwargs):
+        x_names = string_to_list(x_names)
+        y_names = string_to_list(y_names)
+
+        if len(x_names) != len(y_names):
+            raise ValueError('x_names and y_names have different length')
+
+        if subplots_kwargs is None:
+            subplots_kwargs = {}
+
+        if axes is None:
+            fig, axes = auto_subplots(len(x_names), **subplots_kwargs)
+
+        # If axes is a single ax, convert it to an array
+        if not hasattr(axes, '__iter__'):
+            axes = np.array([axes])
+
+        # find fig by axes
+        fig = axes.flatten()[0].get_figure()
+
+        same_key = {}
+        each_key = {}
+        for key in kwargs:
+            # is end of
+            if key.endswith('_each'):
+                key_single = key[:-5]
+                each_key[key_single] = kwargs[key]
+            else:
+                same_key[key] = kwargs[key]
+
+        for i in range(len(x_names)):
+            ax = axes.flat[i]
+            this_kwargs = same_key.copy()
+            for key in each_key:
+                this_kwargs[key] = each_key[key][i]
+            self.method_mapping[kind](x_names[i], y_names[i], ax,
+                                      **this_kwargs)
+
+        return fig, axes
+
     def plot_xygeneral(self,
                        kind,
                        x_names,
@@ -406,7 +451,6 @@ class Dataset(BasicDataset):
                        **kwargs):
 
         # TODO: bin by the third variable
-        # TODO: No broadcast option
 
         x_names = string_to_list(x_names)
         y_names = string_to_list(y_names)
@@ -473,36 +517,57 @@ class Dataset(BasicDataset):
 
             self.method_mapping[kind](x_names[j], y_names[i], ax,
                                       **this_kwargs)
-        
+
         return fig, axes
 
     def trend(self,
               x_names,
               y_names,
+              broadcast=True,
               axes=None,
               subplots_kwargs=None,
               **kwargs):
 
-        return self.plot_xygeneral('trend',
-                            x_names,
-                            y_names,
-                            axes=axes,
-                            subplots_kwargs=subplots_kwargs,
-                            **kwargs)
+        if broadcast:
+            return self.plot_xygeneral('trend',
+                                       x_names,
+                                       y_names,
+                                       axes=axes,
+                                       subplots_kwargs=subplots_kwargs,
+                                       **kwargs)
+
+        else:
+            return self.plot_xygeneral_no_broadcast(
+                'trend',
+                x_names,
+                y_names,
+                axes=axes,
+                subplots_kwargs=subplots_kwargs,
+                **kwargs)
 
     def contour(self,
                 x_names,
                 y_names,
+                broadcast=True,
                 axes=None,
                 subplots_kwargs=None,
                 **kwargs):
 
-        return self.plot_xygeneral('contour',
-                            x_names,
-                            y_names,
-                            axes=axes,
-                            subplots_kwargs=subplots_kwargs,
-                            **kwargs)
+        if broadcast:
+            return self.plot_xygeneral('contour',
+                                       x_names,
+                                       y_names,
+                                       axes=axes,
+                                       subplots_kwargs=subplots_kwargs,
+                                       **kwargs)
+        else:
+            return self.plot_xygeneral_no_broadcast(
+                'contour',
+                x_names,
+                y_names,
+                axes=axes,
+                subplots_kwargs=subplots_kwargs,
+                **kwargs)
 
     def corner(self, names=None, axes=None, **kwargs):
         if names is None:
@@ -523,29 +588,50 @@ class Dataset(BasicDataset):
     def scatter(self,
                 x_names,
                 y_names,
+                broadcast=True,
                 axes=None,
                 subplots_kwargs=None,
                 **kwargs):
 
-        return self.plot_xygeneral('scatter',
-                            x_names,
-                            y_names,
-                            axes=axes,
-                            subplots_kwargs=subplots_kwargs,
-                            **kwargs)
+        if broadcast:
+            return self.plot_xygeneral('scatter',
+                                       x_names,
+                                       y_names,
+                                       axes=axes,
+                                       subplots_kwargs=subplots_kwargs,
+                                       **kwargs)
+        else:
+            return self.plot_xygeneral_no_broadcast(
+                'scatter',
+                x_names,
+                y_names,
+                axes=axes,
+                subplots_kwargs=subplots_kwargs,
+                **kwargs)
 
     def heatmap(self,
                 x_names,
                 y_names,
+                broadcast=True,
                 axes=None,
                 subplots_kwargs=None,
                 **kwargs):
-        return self.plot_xygeneral('heatmap',
-                            x_names,
-                            y_names,
-                            axes=axes,
-                            subplots_kwargs=subplots_kwargs,
-                            **kwargs)
+
+        if broadcast:
+            return self.plot_xygeneral('heatmap',
+                                       x_names,
+                                       y_names,
+                                       axes=axes,
+                                       subplots_kwargs=subplots_kwargs,
+                                       **kwargs)
+        else:
+            return self.plot_xygeneral_no_broadcast(
+                'heatmap',
+                x_names,
+                y_names,
+                axes=axes,
+                subplots_kwargs=subplots_kwargs,
+                **kwargs)
 
 
 def auto_subplots(n1, n2=None, figshape=None, figsize=None, dpi=400):
