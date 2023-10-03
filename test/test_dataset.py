@@ -5,13 +5,18 @@ from asa.dataset import parse_inequality
 
 
 class TestGetitem:
-    def test_getitem(self):
+
+    def gen_dataset(self):
         x = np.arange(10)
         y = np.arange(10) * 2
         z = np.arange(10) * 3
         dataset = Dataset(
             np.array([x, y, z]).T, ['x', 'y', 'z'],
             ['x label', 'y label', 'z label'])
+        return dataset, x, y, z
+
+    def test_getitem(self):
+        dataset, x, y, z = self.gen_dataset()
 
         assert np.array_equal(dataset[0], np.array([x[0], y[0], z[0]]))
         assert np.array_equal(dataset[:, :], np.array([x, y, z]).T)
@@ -46,12 +51,7 @@ class TestGetitem:
 
     def test_inequality_to_subsample(self):
 
-        x = np.arange(10)
-        y = np.arange(10) * 2
-        z = np.arange(10) * 3
-        dataset = Dataset(
-            np.array([x, y, z]).T, ['x', 'y', 'z'],
-            ['x label', 'y label', 'z label'])
+        dataset, x, y, z = self.gen_dataset()
 
         debug = False
 
@@ -67,9 +67,7 @@ class TestGetitem:
 
     def test_check_same_length(self):
 
-        x = np.arange(10)
-        y = np.arange(10) * 2
-        z = np.arange(10) * 3
+        _, x, y, z = self.gen_dataset()
 
         with pytest.raises(ValueError) as excinfo:
             Dataset(
@@ -83,5 +81,26 @@ class TestGetitem:
         assert 'data and labels have different length' == str(excinfo.value)
 
         Dataset(
-                np.array([x, y, z]).T, ['x', 'y', 'z'],
-                ['x label', 'y label', 'z label'])
+            np.array([x, y, z]).T, ['x', 'y', 'z'],
+            ['x label', 'y label', 'z label'])
+
+    def test_setitem(self):
+
+        
+        
+        dataset, x, y, z = self.gen_dataset()
+        dataset['x'] = x * 2
+        assert np.array_equal(dataset['x'], x * 2)
+
+        dataset, x, y, z = self.gen_dataset()
+        dataset[:, 'x'] = x * 2
+        assert np.array_equal(dataset['x'], x * 2)
+
+        dataset, x, y, z = self.gen_dataset()
+        dataset[:, ['x', 'y']] = np.array([x * 2, y * 3]).T
+        assert np.array_equal(dataset['x'], x * 2)
+        assert np.array_equal(dataset['y'], y * 3)
+
+        dataset, x, y, z = self.gen_dataset()
+        dataset['x2'] = x * 2
+        assert np.array_equal(dataset['x2'], x * 2)

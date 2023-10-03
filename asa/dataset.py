@@ -80,10 +80,52 @@ class BasicDataset:
         else:
             return self.data[key]
 
-    def __setitem__(self, keys, values) -> None:
+    def __setitem__(self, key, value) -> None:
 
-        # TODO: reassign existed columns
-        self.add_col(values, keys, keys)
+        if isinstance(key, tuple):
+            if len(key) != 2:
+                raise ValueError('key should be a tuple of length 2')
+            if is_string_or_list_of_string(key[0]):
+                raise ValueError('key[0] can not be string or list of string')
+            if is_string_or_list_of_string(key[1]):
+                k1_idx, k2 = key
+                names_list = list(self.names)
+                if isinstance(k2, str):
+                    k2_idx: Union[int, List[int]] = names_list.index(k2)
+                else:
+                    k2_idx = [names_list.index(this_k2) for this_k2 in k2]
+            else:
+                k1_idx, k2_idx = key
+            self.data[k1_idx, k2_idx] = value
+
+        # dataset['x'], dataset[['x', 'y']]
+        elif is_string_or_list_of_string(key):
+            names_list = list(self.names)
+
+            if isinstance(key, str):
+                if key in names_list:
+                    key_idx: Union[int, List[int]] = names_list.index(key)
+                else:
+                    self.add_col(value, key, key)
+                    key_idx = None
+            else:
+                key_idx = []
+                new_names = []
+                for this_k in key:
+                    if this_k in names_list:
+                        key_idx.append(names_list.index(this_k))
+                    else:
+                        new_names.append(this_k)
+
+                if len(new_names) > 0:
+                    self.add_col(value, new_names, new_names)
+
+            if not key_idx is None:
+                self.data[:, key_idx] = value
+
+        # dataset[10], dataset[:10], dataset[10:20], dataset[[1, 2, 3]]
+        else:
+            self.data[key] = value
 
     def __repr__(self) -> str:
         return self.__str__()
