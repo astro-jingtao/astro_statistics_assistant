@@ -15,7 +15,6 @@ class BasicDataset:
 
     def __init__(self, data, names=None, labels=None) -> None:
         # TODO: ranges
-        # TODO: check if data, names and labels are the same length
         # TODO: support labels as a dict = {name: label}
 
         # If data is pandas DF, convert it to numpy array
@@ -38,6 +37,16 @@ class BasicDataset:
         self.data = np.asarray(data)
         self.names = np.asarray(names)
         self.labels = np.asarray(labels)
+
+        # if data, names, labels have same length
+        len_data = self.data.shape[1]
+        len_names = self.names.shape[0]
+        len_labels = self.labels.shape[0]
+
+        if len_data != len_names:
+            raise ValueError('data and names have different length')
+        if len_data != len_labels:
+            raise ValueError('data and labels have different length')
 
     def __getitem__(self, key) -> np.ndarray:
         '''
