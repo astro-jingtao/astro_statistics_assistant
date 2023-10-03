@@ -5,7 +5,6 @@ from asa.dataset import parse_inequality
 
 
 class TestGetitem:
-
     def gen_dataset(self):
         x = np.arange(10)
         y = np.arange(10) * 2
@@ -69,16 +68,18 @@ class TestGetitem:
 
         _, x, y, z = self.gen_dataset()
 
+        # this error is handled by pd.DataFrame
         with pytest.raises(ValueError) as excinfo:
             Dataset(
                 np.array([x, y, z]).T, ['x', 'y'],
                 ['x label', 'y label', 'z label'])
-        assert 'data and names have different length' == str(excinfo.value)
+        assert 'Shape of passed values is (10, 3), indices imply (10, 2)' == str(
+            excinfo.value)
 
         with pytest.raises(ValueError) as excinfo:
             Dataset(
                 np.array([x, y, z]).T, ['x', 'y', 'z'], ['x label', 'y label'])
-        assert 'data and labels have different length' == str(excinfo.value)
+        assert 'names and labels have different length' == str(excinfo.value)
 
         Dataset(
             np.array([x, y, z]).T, ['x', 'y', 'z'],
@@ -86,8 +87,6 @@ class TestGetitem:
 
     def test_setitem(self):
 
-        
-        
         dataset, x, y, z = self.gen_dataset()
         dataset['x'] = x * 2
         assert np.array_equal(dataset['x'], x * 2)

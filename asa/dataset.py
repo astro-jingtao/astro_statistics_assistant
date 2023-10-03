@@ -1,6 +1,6 @@
 import itertools
 import re
-from typing import Union, List
+from typing import Union, List, Callable
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -10,22 +10,30 @@ from .utils import string_to_list, is_string_or_list_of_string
 
 class BasicDataset:
 
-    OP_MAP = {'log10': np.log10, 'square': np.square}
-    OP_MAP_LABEL = {'log10': r'$\log$', 'square': ''}
+    OP_MAP: dict[str, Callable] = {'log10': np.log10, 'square': np.square}
+    OP_MAP_LABEL: dict[str, str] = {'log10': r'$\log$', 'square': ''}
 
     def __init__(self, data, names=None, labels=None) -> None:
         # TODO: ranges
         # TODO: support labels as a dict = {name: label}
 
-        # If data is pandas DF, convert it to numpy array
-        # sourcery skip: merge-else-if-into-elif
+        self.data: pd.DataFrame
+        self.names: np.ndarray
+        self.labels: np.ndarray
+
         if isinstance(data, pd.DataFrame):
+            self.data = data
             if names is None:
                 names = data.columns
-            data = data.to_numpy()
+            else:
+                self.data.columns = names
         else:
+            self.data = pd.DataFrame(data, columns=names)
             if names is None:
                 names = [f'x{i}' for i in range(data.shape[1])]
+                self.data.columns = names
+
+        self.names = np.asarray(names)
 
         if labels is None:
             labels = names
@@ -34,23 +42,18 @@ class BasicDataset:
             if label is None:
                 labels[i] = names[i]
 
-        self.data = np.asarray(data)
-        self.names = np.asarray(names)
         self.labels = np.asarray(labels)
 
         # if data, names, labels have same length
-        len_data = self.data.shape[1]
         len_names = self.names.shape[0]
         len_labels = self.labels.shape[0]
 
-        if len_data != len_names:
-            raise ValueError('data and names have different length')
-        if len_data != len_labels:
-            raise ValueError('data and labels have different length')
+        if len_names != len_labels:
+            raise ValueError('names and labels have different length')
 
-    def __getitem__(self, key) -> np.ndarray:
+    def __getitem__(self, key) -> Union[pd.DataFrame, pd.Series]:
         '''
-        Get the data by index or name.
+        -- NOTE -- Should return DataFrame or Series
         '''
 
         # support log10@x here
@@ -69,18 +72,20 @@ class BasicDataset:
                     k2_idx = [names_list.index(this_k2) for this_k2 in k2]
             else:
                 k1_idx, k2_idx = key
-            return self.data[k1_idx, k2_idx]
+            return self.data.iloc[k1_idx, k2_idx]
         elif is_string_or_list_of_string(key):
             names_list = list(self.names)
             if isinstance(key, str):
                 key_idx: Union[int, List[int]] = names_list.index(key)
             else:
                 key_idx = [names_list.index(this_k) for this_k in key]
-            return self.data[:, key_idx]
+            return self.data.iloc[:, key_idx]
         else:
-            return self.data[key]
+            return self.data.iloc[key]
 
     def __setitem__(self, key, value) -> None:
+
+        k2_idx: Union[int, List[int]]
 
         if isinstance(key, tuple):
             if len(key) != 2:
@@ -91,12 +96,12 @@ class BasicDataset:
                 k1_idx, k2 = key
                 names_list = list(self.names)
                 if isinstance(k2, str):
-                    k2_idx: Union[int, List[int]] = names_list.index(k2)
+                    k2_idx = names_list.index(k2)
                 else:
                     k2_idx = [names_list.index(this_k2) for this_k2 in k2]
             else:
                 k1_idx, k2_idx = key
-            self.data[k1_idx, k2_idx] = value
+            self.data.iloc[k1_idx, k2_idx] = value
 
         # dataset['x'], dataset[['x', 'y']]
         elif is_string_or_list_of_string(key):
@@ -104,7 +109,8 @@ class BasicDataset:
 
             if isinstance(key, str):
                 if key in names_list:
-                    key_idx: Union[int, List[int]] = names_list.index(key)
+                    key_idx: Union[int, List[int],
+                                   None] = names_list.index(key)
                 else:
                     self.add_col(value, key, key)
                     key_idx = None
@@ -121,11 +127,11 @@ class BasicDataset:
                     self.add_col(value, new_names, new_names)
 
             if not key_idx is None:
-                self.data[:, key_idx] = value
+                self.data.iloc[:, key_idx] = value
 
         # dataset[10], dataset[:10], dataset[10:20], dataset[[1, 2, 3]]
         else:
-            self.data[key] = value
+            self.data.iloc[key] = value
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -137,13 +143,10 @@ class BasicDataset:
         summary_string += f'  Labels: {str(self.labels)}' + '\n'
         return summary_string
 
-    def to_pandas(self):
-        return pd.DataFrame(self.data, columns=self.names)
-
     def summary(self, stats_info=False) -> None:
         print(self.__str__())
         if stats_info:
-            print(self.to_pandas().describe())
+            print(self.data.describe())
 
     def add_col(self, new_cols, new_names, new_labels) -> None:
 
@@ -158,12 +161,14 @@ class BasicDataset:
         if new_cols.ndim == 1:
             new_cols = new_cols[:, np.newaxis]
 
-        self.data = np.hstack((self.data, new_cols))
+        # self.data is a DataFrame
+        self.data = pd.concat(
+            [self.data, pd.DataFrame(new_cols, columns=new_names)], axis=1)
         self.names = np.asarray(list(self.names) + list(new_names))
         self.labels = np.asarray(list(self.labels) + list(new_labels))
 
     def add_row(self, new_rows) -> None:
-        self.data = np.vstack((self.data, new_rows))
+        self.data = pd.concat([self.data, pd.DataFrame(new_rows, columns=self.names)], axis=0, ignore_index=True)
 
     def del_col(self, key) -> None:
         '''
@@ -180,33 +185,35 @@ class BasicDataset:
             self._del_col(key)
 
     def _del_col(self, key):
-        self.data = np.delete(self.data, key, axis=1)
+        # self.data in a Pandas DataFrame
+        self.data.drop(self.names[key], axis=1, inplace=True)
         self.names = np.delete(self.names, key, axis=0)
         self.labels = np.delete(self.labels, key, axis=0)
 
-    def del_row(self, ncol) -> None:
-        self.data = np.delete(self.data, ncol, axis=0)
+    def del_row(self, nrow) -> None:
+        self.data.drop(nrow, axis=0, inplace=True)
+        # reindex
+        self.data.reset_index(drop=True, inplace=True)
 
-    def get_data_by_name(self, name):
+    def get_data_by_name(self, name) -> np.ndarray:
         # sourcery skip: remove-unnecessary-else, swap-if-else-branches
-        if name is None:
-            return None
-        elif '@' in name:
+        if '@' in name:
             op, name = name.split('@')
-            return self.OP_MAP[op](self[name])
+            return self.OP_MAP[op](self[name].to_numpy())
         else:
-            return self[name]
+            return self[name].to_numpy()
 
-    def get_label_by_name(self, name):
-        if name is None:
-            return None
-        elif '@' in name:
+    def get_label_by_name(self, name) -> str:
+        if '@' in name:
             op, name = name.split('@')
             return self.OP_MAP_LABEL[op] + self.labels[self.names == name][0]
         else:
             return self.labels[self.names == name][0]
 
-    def get_subsample(self, subsample):  # sourcery skip: lift-return-into-if
+    def get_subsample(
+        self, subsample
+    ) -> Union[np.ndarray, slice]:  # sourcery skip: lift-return-into-if
+        _subsample: Union[np.ndarray, slice]
 
         if subsample is None:
             _subsample = slice(None)
@@ -217,7 +224,7 @@ class BasicDataset:
 
         return _subsample
 
-    def string_to_subsample(self, string):
+    def string_to_subsample(self, string) -> np.ndarray:
         # sourcery skip: lift-return-into-if, remove-unnecessary-else
 
         if is_inequality(string):
@@ -225,10 +232,12 @@ class BasicDataset:
         else:
             names_list = list(self.names)
             subsample_idx = names_list.index(string)
-            _subsample = self.data[:, subsample_idx].astype(bool)
+            _subsample = self[:, subsample_idx].astype(bool).to_numpy()
         return _subsample
 
-    def inequality_to_subsample(self, inequality_string, debug=False):
+    def inequality_to_subsample(self,
+                                inequality_string,
+                                debug=False) -> np.ndarray:
         '''
         Return the subsample according to the inequality string.
         '''
@@ -249,12 +258,14 @@ class BasicDataset:
                 if debug:
                     print(this_inequality)
 
-                subsample = subsample & eval(command)
+                subsample = subsample & eval(command).to_numpy()
 
         return subsample
 
 
 class Dataset(BasicDataset):
+
+    # -- Note -- that all values passed to plot_xxx should be numpy array, not series
 
     # TODO: histogram
     # TODO: control 1D/2D
