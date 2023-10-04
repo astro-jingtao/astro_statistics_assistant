@@ -6,7 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.stats import binned_statistic, binned_statistic_2d
 from .plot_methods import plot_contour, plot_trend, plot_corner, plot_scatter, plot_heatmap
-from .utils import string_to_list, is_string_or_list_of_string, list_reshape
+from .utils import string_to_list, is_string_or_list_of_string, list_reshape, flag_bad
 
 _range = range
 
@@ -182,7 +182,7 @@ class BasicDataset:
             idx = self.names == name
             self.names[idx] = names_dict[name]
             self.data.rename(columns={name: names_dict[name]}, inplace=True)
-    
+
     def update_ranges(self, ranges_dict) -> None:
         for name in ranges_dict:
             self.ranges[name] = ranges_dict[name]
@@ -259,7 +259,25 @@ class BasicDataset:
             return self.labels[self.names == name][0]
 
     def get_range_by_name(self, name):
-        return self.ranges.get(name, None)
+        if '@' in name:
+            if name in self.ranges:
+                return self.ranges[name]
+            else:
+                op, name = name.split('@')
+                range_original = self.ranges.get(name, None)
+                if range_original is None:
+                    return None
+                else:
+                    range_min = self.OP_MAP[op](range_original[0])
+                    range_max = self.OP_MAP[op](range_original[1])
+                    if flag_bad(range_min) or flag_bad(range_max):
+                        return None
+                    return [
+                        self.OP_MAP[op](range_original[0]),
+                        self.OP_MAP[op](range_original[1])
+                    ]
+        else:
+            return self.ranges.get(name, None)
 
     def get_subsample(
         self, subsample: Union[None, str, np.ndarray]
