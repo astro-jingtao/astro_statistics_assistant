@@ -103,3 +103,26 @@ class TestDataset:
         dataset, x, y, z = self.gen_dataset()
         dataset['x2'] = x * 2
         assert np.array_equal(dataset['x2'], x * 2)
+
+    def test_construct(self):
+        _, x, y, z = self.gen_dataset()
+
+        # label as dict
+        dataset = Dataset(np.array([x, y, z]).T,
+                          names=['x', 'y', 'z'],
+                          labels={
+                              'x': 'x_label',
+                              'y': 'y_label',
+                              'z': 'z_label'
+                          })
+        assert np.array_equal(dataset.labels,
+                              np.array(['x_label', 'y_label', 'z_label']))
+
+        dataset = Dataset(np.array([x, y, z]).T,
+                          names=['x', 'y', 'z'],
+                          labels={
+                              'x': 'x_label',
+                              'y': 'y_label'
+                          })
+        assert np.array_equal(dataset.labels,
+                              np.array(['x_label', 'y_label', 'z']))
