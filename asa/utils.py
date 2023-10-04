@@ -1,3 +1,4 @@
+from typing import List
 import numpy as np
 from scipy.stats import binned_statistic, binned_statistic_2d
 
@@ -22,6 +23,15 @@ def string_to_list(string):
 def is_string_or_list_of_string(x):
     return (isinstance(x, str)
             or isinstance(x, list) and all(isinstance(y, str) for y in x))
+
+def list_reshape(lst: List, shape) -> List[List]:
+    """
+    Reshape a list into a list of lists
+    :param lst: the input list
+    :param shape: the shape of the output list
+    :return: a list of lists
+    """
+    return [lst[i:i + shape[1]] for i in _range(0, len(lst), shape[1])]
 
 
 def auto_set_range(x, y, _range, auto_p):

@@ -4,7 +4,7 @@ from asa.dataset import Dataset
 from asa.dataset import parse_inequality
 
 
-class TestGetitem:
+class TestDataset:
     def gen_dataset(self):
         x = np.arange(10)
         y = np.arange(10) * 2

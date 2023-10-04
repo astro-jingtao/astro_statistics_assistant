@@ -1,11 +1,16 @@
 import itertools
 import re
-from typing import Union, List, Callable
+from typing import Union, List, Callable, Any
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from scipy.stats import binned_statistic, binned_statistic_2d
 from .plot_methods import plot_contour, plot_trend, plot_corner, plot_scatter, plot_heatmap
-from .utils import string_to_list, is_string_or_list_of_string
+from .utils import string_to_list, is_string_or_list_of_string, list_reshape
+
+_range = range
+
+# TODO: DF to AASTeX tabel. Maybe ref to: https://github.com/liuguanfu1120/Excel-to-AASTeX/blob/main/xlsx-to-AAS-table.ipynb
 
 
 class BasicDataset:
@@ -15,6 +20,7 @@ class BasicDataset:
 
     def __init__(self, data, names=None, labels=None) -> None:
         # TODO: ranges
+        # TODO: units
         # TODO: support labels as a dict = {name: label}
 
         self.data: pd.DataFrame
@@ -103,7 +109,6 @@ class BasicDataset:
                 k1_idx, k2_idx = key
             self.data.iloc[k1_idx, k2_idx] = value
 
-        # dataset['x'], dataset[['x', 'y']]
         elif is_string_or_list_of_string(key):
             names_list = list(self.names)
 
@@ -123,13 +128,13 @@ class BasicDataset:
                     else:
                         new_names.append(this_k)
 
+                # sourcery skip: simplify-len-comparison
                 if len(new_names) > 0:
                     self.add_col(value, new_names, new_names)
 
-            if not key_idx is None:
+            if key_idx is not None:
                 self.data.iloc[:, key_idx] = value
 
-        # dataset[10], dataset[:10], dataset[10:20], dataset[[1, 2, 3]]
         else:
             self.data.iloc[key] = value
 
@@ -168,7 +173,10 @@ class BasicDataset:
         self.labels = np.asarray(list(self.labels) + list(new_labels))
 
     def add_row(self, new_rows) -> None:
-        self.data = pd.concat([self.data, pd.DataFrame(new_rows, columns=self.names)], axis=0, ignore_index=True)
+        self.data = pd.concat(
+            [self.data, pd.DataFrame(new_rows, columns=self.names)],
+            axis=0,
+            ignore_index=True)
 
     def del_col(self, key) -> None:
         '''
@@ -204,6 +212,7 @@ class BasicDataset:
             return self[name].to_numpy()
 
     def get_label_by_name(self, name) -> str:
+        # sourcery skip: remove-unnecessary-else, swap-if-else-branches
         if '@' in name:
             op, name = name.split('@')
             return self.OP_MAP_LABEL[op] + self.labels[self.names == name][0]
@@ -211,17 +220,25 @@ class BasicDataset:
             return self.labels[self.names == name][0]
 
     def get_subsample(
-        self, subsample
-    ) -> Union[np.ndarray, slice]:  # sourcery skip: lift-return-into-if
-        _subsample: Union[np.ndarray, slice]
+        self, subsample: Union[None, str, np.ndarray]
+    ) -> np.ndarray:  # sourcery skip: lift-return-into-if
+        _subsample: np.ndarray
 
         if subsample is None:
-            _subsample = slice(None)
+            _subsample = np.ones(self.data.shape[0]).astype(bool)
         elif isinstance(subsample, str):
             _subsample = self.string_to_subsample(subsample)
         else:
             _subsample = subsample
 
+        if _subsample.dtype == int:
+            _subsample = self.index_to_bool_subsample(_subsample)
+
+        return _subsample
+
+    def index_to_bool_subsample(self, index) -> np.ndarray:
+        _subsample = np.zeros(self.data.shape[0]).astype(bool)
+        _subsample[index] = True
         return _subsample
 
     def string_to_subsample(self, string) -> np.ndarray:
@@ -261,6 +278,77 @@ class BasicDataset:
                 subsample = subsample & eval(command).to_numpy()
 
         return subsample
+
+    def get_subsample_each_bin_by_name(
+        self,
+        names,
+        bins=10,
+        title_ndigits=2,
+        return_edges=False,
+        list_shape=None,
+        range=None,
+        subsample=None
+    ) -> Union[tuple[List, List], tuple[List, List, Union[List, np.ndarray]]]:
+        """
+        list_reshape: 
+            return subsample_each and title_each in shape defined by list_reshape. Only works when use one name.
+        """
+
+        title_each: List = []
+        subsample_each: List = []
+
+        names = string_to_list(names)
+        subsample = self.get_subsample(subsample)
+
+        if len(names) == 1:
+            x = self.get_data_by_name(names[0])
+            _, edges, bin_index = binned_statistic(x,
+                                                   x,
+                                                   statistic='count',
+                                                   bins=bins,
+                                                   range=range)
+            for i in _range(1, len(edges)):
+
+                # TODO: consider log10@x
+                # TODO: different format
+                # TODO: drop min/max for first/latest bin
+                title_each.append(
+                    f'{names[0]}: [{edges[i-1]:.{title_ndigits}f}, {edges[i]:.{title_ndigits}f})'
+                )
+
+                subsample_each.append(subsample & (bin_index == i))
+
+            if list_shape is not None:
+                title_each = list_reshape(title_each, list_shape)
+                subsample_each = list_reshape(subsample_each, list_shape)
+
+        elif len(names) == 2:
+            x = self.get_data_by_name(names[0])
+            y = self.get_data_by_name(names[1])
+            _, x_edges, y_edges, bin_index = binned_statistic_2d(
+                x,
+                y,
+                x,
+                statistic='count',
+                bins=bins,
+                range=range,
+                expand_binnumbers=True)
+
+            for i in _range(1, len(x_edges)):
+                for j in _range(1, len(y_edges)):
+                    title_each.append(
+                        f'{names[0]}: [{x_edges[i-1]:.{title_ndigits}f}, {x_edges[i]:.{title_ndigits}f}), {names[1]}: [{y_edges[j-1]:.{title_ndigits}f}, {y_edges[j]:.{title_ndigits}f})'
+                    )
+                    subsample_each.append(subsample & (bin_index[0] == i)
+                                          & (bin_index[1] == j))
+
+            edges = [x_edges, y_edges]
+        else:
+            raise ValueError('can not handle more than two names')
+
+        if return_edges:
+            return subsample_each, title_each, edges
+        return subsample_each, title_each
 
 
 class Dataset(BasicDataset):
