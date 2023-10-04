@@ -76,10 +76,10 @@ class TestDataset:
         assert 'Shape of passed values is (10, 3), indices imply (10, 2)' == str(
             excinfo.value)
 
-        with pytest.raises(ValueError) as excinfo:
+        with pytest.raises(IndexError) as excinfo:
             Dataset(
                 np.array([x, y, z]).T, ['x', 'y', 'z'], ['x label', 'y label'])
-        assert 'names and labels have different length' == str(excinfo.value)
+        assert 'list index out of range' == str(excinfo.value)
 
         Dataset(
             np.array([x, y, z]).T, ['x', 'y', 'z'],
@@ -103,3 +103,63 @@ class TestDataset:
         dataset, x, y, z = self.gen_dataset()
         dataset['x2'] = x * 2
         assert np.array_equal(dataset['x2'], x * 2)
+
+    def test_construct(self):
+        _, x, y, z = self.gen_dataset()
+
+        # label as dict
+        dataset = Dataset(np.array([x, y, z]).T,
+                          names=['x', 'y', 'z'],
+                          labels={
+                              'x': 'x_label',
+                              'y': 'y_label',
+                              'z': 'z_label'
+                          })
+        assert dataset.labels == {
+            'x': 'x_label',
+            'y': 'y_label',
+            'z': 'z_label'
+        }
+
+        dataset = Dataset(np.array([x, y, z]).T,
+                          names=['x', 'y', 'z'],
+                          labels={
+                              'x': 'x_label',
+                              'y': 'y_label'
+                          })
+        assert dataset.labels == {
+                              'x': 'x_label',
+                              'y': 'y_label'
+                          }
+
+    def test_update(self):
+
+        dataset, x, y, z = self.gen_dataset()
+        assert dataset.labels == {'x': 'x label', 'y': 'y label', 'z': 'z label'}
+
+        dataset.update_labels({'x': 'xxx', 'y': 'yyy'})
+        assert dataset.labels == {'x': 'xxx', 'y': 'yyy', 'z': 'z label'}
+
+        dataset.update_names({'x': 'x1'})
+        assert np.array_equal(dataset.names, np.array(['x1', 'y', 'z']))
+        assert np.array_equal(np.asarray(dataset.data.columns), dataset.names)
+
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning")  # np.log10(0)
+    def test_get_range_by_name(self):
+
+        _, x, y, z = self.gen_dataset()
+        dataset = Dataset(np.array([x, y, z]).T, ['x', 'y', 'z'],
+                          ['x label', 'y label', 'z label'],
+                          ranges={'x': [0, 9]})
+
+        assert dataset.get_range_by_name('x') == [0, 9]
+        assert dataset.get_range_by_name('log10@x') is None
+        assert dataset.get_range_by_name('y') is None
+
+        dataset = Dataset(np.array([x, y, z]).T, ['x', 'y', 'z'],
+                          ['x label', 'y label', 'z label'],
+                          ranges={'x': [1, 9]})
+
+        assert dataset.get_range_by_name('log10@x') == [
+            np.log10(1), np.log10(9)
+        ]

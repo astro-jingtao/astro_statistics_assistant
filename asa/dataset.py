@@ -1,12 +1,12 @@
 import itertools
 import re
-from typing import Union, List, Callable, Any
+from typing import Union, List, Callable, Any, Dict
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.stats import binned_statistic, binned_statistic_2d
 from .plot_methods import plot_contour, plot_trend, plot_corner, plot_scatter, plot_heatmap
-from .utils import string_to_list, is_string_or_list_of_string, list_reshape
+from .utils import string_to_list, is_string_or_list_of_string, list_reshape, flag_bad
 
 _range = range
 
@@ -15,19 +15,22 @@ _range = range
 
 class BasicDataset:
 
-    # TODO: can update labels by dict
+    # TODO: auto complete for self['x']
 
-    OP_MAP: dict[str, Callable] = {'log10': np.log10, 'square': np.square}
-    OP_MAP_LABEL: dict[str, str] = {'log10': r'$\log$', 'square': ''}
+    OP_MAP: Dict[str, Callable] = {'log10': np.log10, 'square': np.square}
+    OP_MAP_LABEL: Dict[str, str] = {'log10': r'$\log$', 'square': ''}
 
-    def __init__(self, data, names=None, labels=None) -> None:
-        # TODO: ranges
+    def __init__(self,
+                 data,
+                 names=None,
+                 labels: Union[Dict, List, None] = None,
+                 ranges: Union[Dict, List, None] = None) -> None:
         # TODO: units
-        # TODO: support labels as a dict = {name: label}
 
         self.data: pd.DataFrame
         self.names: np.ndarray
-        self.labels: np.ndarray
+        self.labels: Dict[str, str]
+        self.ranges: Dict[str, Union[List, None]]
 
         if isinstance(data, pd.DataFrame):
             self.data = data
@@ -41,27 +44,29 @@ class BasicDataset:
                 names = [f'x{i}' for i in range(data.shape[1])]
                 self.data.columns = names
 
-        self.names = np.asarray(names)
+        self.names = np.asarray(names, dtype='<U64')
 
-        if labels is None:
-            labels = names
+        if isinstance(labels, dict):
+            self.labels = labels
+        elif isinstance(labels, list):
+            self.labels = {name: labels[i] for i, name in enumerate(names)}
+        elif labels is None:
+            self.labels = {}
+        else:
+            raise ValueError('labels should be dict or list')
 
-        for i, label in enumerate(labels):
-            if label is None:
-                labels[i] = names[i]
-
-        self.labels = np.asarray(labels)
-
-        # if data, names, labels have same length
-        len_names = self.names.shape[0]
-        len_labels = self.labels.shape[0]
-
-        if len_names != len_labels:
-            raise ValueError('names and labels have different length')
+        if isinstance(ranges, dict):
+            self.ranges = ranges
+        elif isinstance(ranges, list):
+            self.ranges = {name: ranges[i] for i, name in enumerate(names)}
+        elif ranges is None:
+            self.ranges = {}
+        else:
+            raise ValueError('ranges should be dict or list')
 
     def __iter__(self):
         return iter(self.data.columns)
-    
+
     def __contains__(self, key):
         return key in self.data.columns
 
@@ -125,7 +130,7 @@ class BasicDataset:
                     key_idx: Union[int, List[int],
                                    None] = names_list.index(key)
                 else:
-                    self.add_col(value, key, key)
+                    self.add_col(value, key)
                     key_idx = None
             else:
                 key_idx = []
@@ -138,7 +143,7 @@ class BasicDataset:
 
                 # sourcery skip: simplify-len-comparison
                 if len(new_names) > 0:
-                    self.add_col(value, new_names, new_names)
+                    self.add_col(value, new_names)
 
             if key_idx is not None:
                 self.data.iloc[:, key_idx] = value
@@ -153,18 +158,31 @@ class BasicDataset:
         summary_string = "" + 'Dataset summary:\n'
         summary_string += f'  Data shape: {str(self.data.shape)}' + '\n'
         summary_string += f'  Names: {str(self.names)}' + '\n'
-        summary_string += f'  Labels: {str(self.labels)}' + '\n'
+        label_lst = [self.labels.get(name, name) for name in self.names]
+        summary_string += f'  Labels: {str(label_lst)}' + '\n'
         return summary_string
+
+    def update_labels(self, labels_dict) -> None:
+        self.labels.update(labels_dict)
+
+    def update_names(self, names_dict) -> None:
+        for name in names_dict:
+            idx = self.names == name
+            self.names[idx] = names_dict[name]
+            self.data.rename(columns={name: names_dict[name]}, inplace=True)
+
+    def update_ranges(self, ranges_dict) -> None:
+        for name in ranges_dict:
+            self.ranges[name] = ranges_dict[name]
 
     def summary(self, stats_info=False) -> None:
         print(self.__str__())
         if stats_info:
             print(self.data.describe())
 
-    def add_col(self, new_cols, new_names, new_labels) -> None:
+    def add_col(self, new_cols, new_names) -> None:
 
         new_names = string_to_list(new_names)
-        new_labels = string_to_list(new_labels)
 
         for name in new_names:
             if name in self.names:
@@ -178,7 +196,6 @@ class BasicDataset:
         self.data = pd.concat(
             [self.data, pd.DataFrame(new_cols, columns=new_names)], axis=1)
         self.names = np.asarray(list(self.names) + list(new_names))
-        self.labels = np.asarray(list(self.labels) + list(new_labels))
 
     def add_row(self, new_rows) -> None:
         self.data = pd.concat(
@@ -204,7 +221,6 @@ class BasicDataset:
         # self.data in a Pandas DataFrame
         self.data.drop(self.names[key], axis=1, inplace=True)
         self.names = np.delete(self.names, key, axis=0)
-        self.labels = np.delete(self.labels, key, axis=0)
 
     def del_row(self, nrow) -> None:
         self.data.drop(nrow, axis=0, inplace=True)
@@ -223,9 +239,30 @@ class BasicDataset:
         # sourcery skip: remove-unnecessary-else, swap-if-else-branches
         if '@' in name:
             op, name = name.split('@')
-            return self.OP_MAP_LABEL[op] + self.labels[self.names == name][0]
+            return self.OP_MAP_LABEL[op] + self.labels.get(name, name)
         else:
-            return self.labels[self.names == name][0]
+            return self.labels.get(name, name)
+
+    def get_range_by_name(self, name):
+        if '@' in name:
+            if name in self.ranges:
+                return self.ranges[name]
+            else:
+                op, name = name.split('@')
+                range_original = self.ranges.get(name, None)
+                if range_original is None:
+                    return None
+                else:
+                    range_min = self.OP_MAP[op](range_original[0])
+                    range_max = self.OP_MAP[op](range_original[1])
+                    if flag_bad(range_min) or flag_bad(range_max):
+                        return None
+                    return [
+                        self.OP_MAP[op](range_original[0]),
+                        self.OP_MAP[op](range_original[1])
+                    ]
+        else:
+            return self.ranges.get(name, None)
 
     def get_subsample(
         self, subsample: Union[None, str, np.ndarray]
@@ -366,9 +403,9 @@ class Dataset(BasicDataset):
     # TODO: histogram
     # TODO: control 1D/2D
 
-    def __init__(self, data, names=None, labels=None) -> None:
+    def __init__(self, data, names=None, labels=None, ranges=None) -> None:
 
-        super().__init__(data, names=names, labels=labels)
+        super().__init__(data, names=names, labels=labels, ranges=ranges)
 
         self.method_mapping = {
             'trend': self._trend,
@@ -481,11 +518,17 @@ class Dataset(BasicDataset):
 
         x = self.get_data_by_name(x_name)
         y = self.get_data_by_name(y_name)
+
         _subsample = self.get_subsample(subsample)
+
         weights = kwargs.pop('weights', None)
         weights = self.get_data_by_name(weights) if isinstance(
             weights, str) else weights
         _weights = weights[_subsample] if weights is not None else None
+
+        if not 'range' in kwargs:
+            kwargs['range'] = self._get_default_range(x_name, y_name)
+
         plot_contour(x[_subsample],
                      y[_subsample],
                      ax=ax,
@@ -494,6 +537,17 @@ class Dataset(BasicDataset):
 
         self._set_ax_prperties(ax, x_name, y_name, xlabel, ylabel, title, xlim,
                                ylim)
+
+    def _get_default_range(self, x_name, y_name):
+        xrange = self.get_range_by_name(x_name)
+        if xrange is None:
+            x = self.get_data_by_name(x_name)
+            xrange = [x.min(), x.max()]
+        yrange = self.get_range_by_name(y_name)
+        if yrange is None:
+            y = self.get_data_by_name(y_name)
+            yrange = [y.min(), y.max()]
+        return [xrange, yrange]
 
     def _set_ax_prperties(self, ax, x_name, y_name, xlabel, ylabel, title,
                           xlim, ylim):
