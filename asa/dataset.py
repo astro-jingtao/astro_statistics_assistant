@@ -574,6 +574,7 @@ class Dataset(BasicDataset):
                  x_name,
                  y_name,
                  ax,
+                 z_name=None,
                  subsample=None,
                  xlabel=None,
                  ylabel=None,
@@ -584,6 +585,11 @@ class Dataset(BasicDataset):
 
         x = self.get_data_by_name(x_name)
         y = self.get_data_by_name(y_name)
+        if z_name is None:
+            _z = None
+        else:
+            _z = self.get_data_by_name(z_name)
+
         _subsample = self.get_subsample(subsample)
         weights = kwargs.pop('weights', None)
         weights = self.get_data_by_name(weights) if isinstance(
@@ -591,6 +597,7 @@ class Dataset(BasicDataset):
         _weights = weights[_subsample] if weights is not None else None
         plot_scatter(x[_subsample],
                      y[_subsample],
+                     z=_z,
                      ax=ax,
                      weights=_weights,
                      **kwargs)
