@@ -15,19 +15,24 @@ _range = range
 
 class BasicDataset:
 
-    # TODO: can update labels by dict
     # TODO: auto complete for self['x']
 
     OP_MAP: Dict[str, Callable] = {'log10': np.log10, 'square': np.square}
     OP_MAP_LABEL: Dict[str, str] = {'log10': r'$\log$', 'square': ''}
 
-    def __init__(self, data, names=None, labels=None) -> None:
+    def __init__(self,
+                 data,
+                 names=None,
+                 labels=None,
+                 ranges: Union[Dict, List, None] = None) -> None:
+        # TODO: labels as dict?
         # TODO: ranges
         # TODO: units
 
         self.data: pd.DataFrame
         self.names: np.ndarray
         self.labels: np.ndarray
+        self.ranges: Dict[str, Union[List, None]]
 
         if isinstance(data, pd.DataFrame):
             self.data = data
@@ -61,9 +66,18 @@ class BasicDataset:
         if len_names != len_labels:
             raise ValueError('names and labels have different length')
 
+        if isinstance(ranges, dict):
+            self.ranges = {name: ranges.get(name, None) for name in names}
+        elif isinstance(ranges, list):
+            self.ranges = {name: ranges[i] for i, name in enumerate(names)}
+        elif ranges is None:
+            self.ranges = {name: None for name in names}
+        else:
+            raise ValueError('ranges should be dict or list')
+
     def __iter__(self):
         return iter(self.data.columns)
-    
+
     def __contains__(self, key):
         return key in self.data.columns
 
@@ -168,7 +182,10 @@ class BasicDataset:
             idx = self.names == name
             self.names[idx] = names_dict[name]
             self.data.rename(columns={name: names_dict[name]}, inplace=True)
-
+    
+    def update_ranges(self, ranges_dict) -> None:
+        for name in ranges_dict:
+            self.ranges[name] = ranges_dict[name]
 
     def summary(self, stats_info=False) -> None:
         print(self.__str__())
@@ -240,6 +257,9 @@ class BasicDataset:
             return self.OP_MAP_LABEL[op] + self.labels[self.names == name][0]
         else:
             return self.labels[self.names == name][0]
+
+    def get_range_by_name(self, name):
+        return self.ranges.get(name, None)
 
     def get_subsample(
         self, subsample: Union[None, str, np.ndarray]
@@ -380,9 +400,9 @@ class Dataset(BasicDataset):
     # TODO: histogram
     # TODO: control 1D/2D
 
-    def __init__(self, data, names=None, labels=None) -> None:
+    def __init__(self, data, names=None, labels=None, ranges=None) -> None:
 
-        super().__init__(data, names=names, labels=labels)
+        super().__init__(data, names=names, labels=labels, ranges=ranges)
 
         self.method_mapping = {
             'trend': self._trend,
@@ -495,11 +515,17 @@ class Dataset(BasicDataset):
 
         x = self.get_data_by_name(x_name)
         y = self.get_data_by_name(y_name)
+
         _subsample = self.get_subsample(subsample)
+
         weights = kwargs.pop('weights', None)
         weights = self.get_data_by_name(weights) if isinstance(
             weights, str) else weights
         _weights = weights[_subsample] if weights is not None else None
+
+        if not 'range' in kwargs:
+            kwargs['range'] = self._get_default_range(x_name, y_name)
+
         plot_contour(x[_subsample],
                      y[_subsample],
                      ax=ax,
@@ -508,6 +534,17 @@ class Dataset(BasicDataset):
 
         self._set_ax_prperties(ax, x_name, y_name, xlabel, ylabel, title, xlim,
                                ylim)
+
+    def _get_default_range(self, x_name, y_name):
+        xrange = self.get_range_by_name(x_name)
+        if xrange is None:
+            x = self.get_data_by_name(x_name)
+            xrange = [x.min(), x.max()]
+        yrange = self.get_range_by_name(y_name)
+        if yrange is None:
+            y = self.get_data_by_name(y_name)
+            yrange = [y.min(), y.max()]
+        return [xrange, yrange]
 
     def _set_ax_prperties(self, ax, x_name, y_name, xlabel, ylabel, title,
                           xlim, ylim):
