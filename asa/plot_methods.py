@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 
 from .Bcorner import corner, hist2d, quantile
 from .utils import flag_bad, weighted_binned_statistic, bin_2d, auto_set_range
+from .loess2d import loess_2d_map
 
 # TODO: extract common code
 # - flag and remove bad
@@ -178,33 +179,65 @@ def plot_trend(x,
 
 def plot_scatter(x,
                  y,
+                 z=None,
                  fig=None,
                  ax=None,
                  range=None,
                  auto_p=None,
                  weights=None,
                  label=None,
+                 ifsmooth=False,
+                 smooth_kwargs=None,
                  plot_kwargs=None):  # sourcery skip: avoid-builtin-shadow
 
-    bad = flag_bad(x) | flag_bad(y)
+
+    # TODO: z_range, automatically adjust?
+    # usage of xnew / ynew
+
+
+    hasz = True
+    if z is None:
+        z = np.ones(len(x))
+        hasz = False
+
+    if weights is None:
+        weights = np.ones_like(x)
+
+    bad = flag_bad(x) | flag_bad(y) | flag_bad(z)
     x = x[~bad]
     y = y[~bad]
+    z = z[~bad]
 
     range = auto_set_range(x, y, range, auto_p)
 
     xrange = range[0]
     yrange = range[1]
 
-    is_in_range = (x > xrange[0]) & (x < xrange[1]) & (y > yrange[0]) & (
-        y < yrange[1])
+    is_in_range = (x > xrange[0]) & (x < xrange[1]) & (y > yrange[0]) & (y < yrange[1])
     
-    # if weights is None:
-    #     weights = np.ones_like(x)
 
     if plot_kwargs is None:
         plot_kwargs = {}
 
-    ax.scatter(x[is_in_range], y[is_in_range], label=label, **plot_kwargs)
+    if ifsmooth:
+        if smooth_kwargs is None:
+            smooth_kwargs = {}
+        nsmooth = smooth_kwargs.get("nsmooth", 0.5)
+        xnew = x[is_in_range].copy()
+        ynew = y[is_in_range].copy()
+        znew = loess_2d_map(x[is_in_range], y[is_in_range], z[is_in_range],\
+               xnew, ynew, weights[is_in_range], nsmooth)
+        sc = ax.scatter(xnew, ynew, c=znew, label=label, **plot_kwargs)
+        plt.colorbar(sc, ax=ax)
+
+    else:
+        if hasz:
+            sc = ax.scatter(x[is_in_range], y[is_in_range], c=z[is_in_range], label=label, **plot_kwargs)
+            plt.colorbar(sc, ax=ax)
+        else:
+            ax.scatter(x[is_in_range], y[is_in_range], label=label, **plot_kwargs)
+
+
 
 
 def plot_corner(xs,
