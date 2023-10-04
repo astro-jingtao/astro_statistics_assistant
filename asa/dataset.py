@@ -23,15 +23,13 @@ class BasicDataset:
     def __init__(self,
                  data,
                  names=None,
-                 labels=None,
+                 labels: Union[Dict, List, None] = None,
                  ranges: Union[Dict, List, None] = None) -> None:
-        # TODO: labels as dict?
-        # TODO: ranges
         # TODO: units
 
         self.data: pd.DataFrame
         self.names: np.ndarray
-        self.labels: np.ndarray
+        self.labels: Dict[str, str]
         self.ranges: Dict[str, Union[List, None]]
 
         if isinstance(data, pd.DataFrame):
@@ -48,23 +46,14 @@ class BasicDataset:
 
         self.names = np.asarray(names, dtype='<U64')
 
-        if labels is None:
-            labels = names
-        elif isinstance(labels, dict):
-            labels = [labels.get(name, name) for name in names]
-
-        for i, label in enumerate(labels):
-            if label is None:
-                labels[i] = names[i]
-
-        self.labels = np.asarray(labels, dtype='<U64')
-
-        # if data, names, labels have same length
-        len_names = self.names.shape[0]
-        len_labels = self.labels.shape[0]
-
-        if len_names != len_labels:
-            raise ValueError('names and labels have different length')
+        if isinstance(labels, dict):
+            self.labels = labels
+        elif isinstance(labels, list):
+            self.labels = {name: labels[i] for i, name in enumerate(names)}
+        elif labels is None:
+            self.labels = {}
+        else:
+            raise ValueError('labels should be dict or list')
 
         if isinstance(ranges, dict):
             self.ranges = ranges
@@ -141,7 +130,7 @@ class BasicDataset:
                     key_idx: Union[int, List[int],
                                    None] = names_list.index(key)
                 else:
-                    self.add_col(value, key, key)
+                    self.add_col(value, key)
                     key_idx = None
             else:
                 key_idx = []
@@ -154,7 +143,7 @@ class BasicDataset:
 
                 # sourcery skip: simplify-len-comparison
                 if len(new_names) > 0:
-                    self.add_col(value, new_names, new_names)
+                    self.add_col(value, new_names)
 
             if key_idx is not None:
                 self.data.iloc[:, key_idx] = value
@@ -169,13 +158,12 @@ class BasicDataset:
         summary_string = "" + 'Dataset summary:\n'
         summary_string += f'  Data shape: {str(self.data.shape)}' + '\n'
         summary_string += f'  Names: {str(self.names)}' + '\n'
-        summary_string += f'  Labels: {str(self.labels)}' + '\n'
+        label_lst = [self.labels.get(name, name) for name in self.names]
+        summary_string += f'  Labels: {str(label_lst)}' + '\n'
         return summary_string
 
     def update_labels(self, labels_dict) -> None:
-        for name in labels_dict:
-            idx = self.names == name
-            self.labels[idx] = labels_dict[name]
+        self.labels.update(labels_dict)
 
     def update_names(self, names_dict) -> None:
         for name in names_dict:
@@ -192,10 +180,9 @@ class BasicDataset:
         if stats_info:
             print(self.data.describe())
 
-    def add_col(self, new_cols, new_names, new_labels) -> None:
+    def add_col(self, new_cols, new_names) -> None:
 
         new_names = string_to_list(new_names)
-        new_labels = string_to_list(new_labels)
 
         for name in new_names:
             if name in self.names:
@@ -209,7 +196,6 @@ class BasicDataset:
         self.data = pd.concat(
             [self.data, pd.DataFrame(new_cols, columns=new_names)], axis=1)
         self.names = np.asarray(list(self.names) + list(new_names))
-        self.labels = np.asarray(list(self.labels) + list(new_labels))
 
     def add_row(self, new_rows) -> None:
         self.data = pd.concat(
@@ -235,7 +221,6 @@ class BasicDataset:
         # self.data in a Pandas DataFrame
         self.data.drop(self.names[key], axis=1, inplace=True)
         self.names = np.delete(self.names, key, axis=0)
-        self.labels = np.delete(self.labels, key, axis=0)
 
     def del_row(self, nrow) -> None:
         self.data.drop(nrow, axis=0, inplace=True)
@@ -254,9 +239,9 @@ class BasicDataset:
         # sourcery skip: remove-unnecessary-else, swap-if-else-branches
         if '@' in name:
             op, name = name.split('@')
-            return self.OP_MAP_LABEL[op] + self.labels[self.names == name][0]
+            return self.OP_MAP_LABEL[op] + self.labels.get(name, name)
         else:
-            return self.labels[self.names == name][0]
+            return self.labels.get(name, name)
 
     def get_range_by_name(self, name):
         if '@' in name:
