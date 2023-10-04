@@ -126,3 +126,14 @@ class TestDataset:
                           })
         assert np.array_equal(dataset.labels,
                               np.array(['x_label', 'y_label', 'z']))
+
+    def test_update(self):
+
+        dataset, x, y, z = self.gen_dataset()
+
+        dataset.update_labels({'x': 'xxx', 'y': 'yyy'})
+        assert np.array_equal(dataset.labels, np.array(['xxx', 'yyy', 'z label']))
+
+        dataset.update_names({'x': 'x1'})
+        assert np.array_equal(dataset.names, np.array(['x1', 'y', 'z']))
+        assert np.array_equal(np.asarray(dataset.data.columns), dataset.names)

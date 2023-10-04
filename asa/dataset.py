@@ -41,7 +41,7 @@ class BasicDataset:
                 names = [f'x{i}' for i in range(data.shape[1])]
                 self.data.columns = names
 
-        self.names = np.asarray(names)
+        self.names = np.asarray(names, dtype='<U64')
 
         if labels is None:
             labels = names
@@ -52,7 +52,7 @@ class BasicDataset:
             if label is None:
                 labels[i] = names[i]
 
-        self.labels = np.asarray(labels)
+        self.labels = np.asarray(labels, dtype='<U64')
 
         # if data, names, labels have same length
         len_names = self.names.shape[0]
@@ -157,6 +157,18 @@ class BasicDataset:
         summary_string += f'  Names: {str(self.names)}' + '\n'
         summary_string += f'  Labels: {str(self.labels)}' + '\n'
         return summary_string
+
+    def update_labels(self, labels_dict) -> None:
+        for name in labels_dict:
+            idx = self.names == name
+            self.labels[idx] = labels_dict[name]
+
+    def update_names(self, names_dict) -> None:
+        for name in names_dict:
+            idx = self.names == name
+            self.names[idx] = names_dict[name]
+            self.data.rename(columns={name: names_dict[name]}, inplace=True)
+
 
     def summary(self, stats_info=False) -> None:
         print(self.__str__())
