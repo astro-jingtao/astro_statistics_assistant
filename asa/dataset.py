@@ -1,6 +1,6 @@
 import itertools
 import re
-from typing import Union, List, Callable, Any
+from typing import Union, List, Callable, Any, Dict
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -16,14 +16,14 @@ _range = range
 class BasicDataset:
 
     # TODO: can update labels by dict
+    # TODO: auto complete for self['x']
 
-    OP_MAP: dict[str, Callable] = {'log10': np.log10, 'square': np.square}
-    OP_MAP_LABEL: dict[str, str] = {'log10': r'$\log$', 'square': ''}
+    OP_MAP: Dict[str, Callable] = {'log10': np.log10, 'square': np.square}
+    OP_MAP_LABEL: Dict[str, str] = {'log10': r'$\log$', 'square': ''}
 
     def __init__(self, data, names=None, labels=None) -> None:
         # TODO: ranges
         # TODO: units
-        # TODO: support labels as a dict = {name: label}
 
         self.data: pd.DataFrame
         self.names: np.ndarray
@@ -45,6 +45,8 @@ class BasicDataset:
 
         if labels is None:
             labels = names
+        elif isinstance(labels, dict):
+            labels = [labels.get(name, name) for name in names]
 
         for i, label in enumerate(labels):
             if label is None:
