@@ -15,6 +15,8 @@ _range = range
 
 class BasicDataset:
 
+    # TODO: can update labels by dict
+
     OP_MAP: dict[str, Callable] = {'log10': np.log10, 'square': np.square}
     OP_MAP_LABEL: dict[str, str] = {'log10': r'$\log$', 'square': ''}
 
@@ -56,6 +58,12 @@ class BasicDataset:
 
         if len_names != len_labels:
             raise ValueError('names and labels have different length')
+
+    def __iter__(self):
+        return iter(self.data.columns)
+    
+    def __contains__(self, key):
+        return key in self.data.columns
 
     def __getitem__(self, key) -> Union[pd.DataFrame, pd.Series]:
         '''
