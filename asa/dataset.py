@@ -67,11 +67,11 @@ class BasicDataset:
             raise ValueError('names and labels have different length')
 
         if isinstance(ranges, dict):
-            self.ranges = {name: ranges.get(name, None) for name in names}
+            self.ranges = ranges
         elif isinstance(ranges, list):
             self.ranges = {name: ranges[i] for i, name in enumerate(names)}
         elif ranges is None:
-            self.ranges = {name: None for name in names}
+            self.ranges = {}
         else:
             raise ValueError('ranges should be dict or list')
 
