@@ -132,8 +132,27 @@ class TestDataset:
         dataset, x, y, z = self.gen_dataset()
 
         dataset.update_labels({'x': 'xxx', 'y': 'yyy'})
-        assert np.array_equal(dataset.labels, np.array(['xxx', 'yyy', 'z label']))
+        assert np.array_equal(dataset.labels,
+                              np.array(['xxx', 'yyy', 'z label']))
 
         dataset.update_names({'x': 'x1'})
         assert np.array_equal(dataset.names, np.array(['x1', 'y', 'z']))
         assert np.array_equal(np.asarray(dataset.data.columns), dataset.names)
+
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning") # np.log10(0)
+    def test_get_range_by_name(self):
+
+        _, x, y, z = self.gen_dataset()
+        dataset = Dataset(np.array([x, y, z]).T, ['x', 'y', 'z'],
+                          ['x label', 'y label', 'z label'],
+                          ranges={'x': [0, 9]})
+
+        assert dataset.get_range_by_name('x') == [0, 9]
+        assert dataset.get_range_by_name('log10@x') is None
+        assert dataset.get_range_by_name('y') is None
+
+        dataset = Dataset(np.array([x, y, z]).T, ['x', 'y', 'z'],
+                          ['x label', 'y label', 'z label'],
+                          ranges={'x': [1, 9]})
+        
+        assert dataset.get_range_by_name('log10@x') == [np.log10(1), np.log10(9)]
