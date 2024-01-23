@@ -119,6 +119,7 @@ def get_MI(x,
     if len(y.shape) == 1:
         y = y.reshape(-1, 1)
 
+
     # TODO: other preprocessing
     # seems qt is not good
     if is_qt:
