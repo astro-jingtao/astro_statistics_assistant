@@ -158,7 +158,7 @@ def search_combination_RF_cls(X,
             param_distributions=param_distributions,
             CVS_kwargs=CVS_kwargs),
                                       drop_estimator=drop_estimator)
-
+    
     res_metric = np.array([
         -rank_scaler * results[combination].best_score_
         for combination in results
@@ -257,7 +257,9 @@ def search_combination_RF_reg(X,
     else:
         return best_combination, best_results
 
-
+# best estimator is the estimator trained on the whole dataset
+# best score is the CV score
+# TODO: deal with when best score is not available
 class CVBest:
 
     def __init__(self, cvs, drop_estimator=False):

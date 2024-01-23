@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.stats import pearsonr, spearmanr
+from scipy.stats import pearsonr, spearmanr, kendalltau
 
 try:
     from sklearnex.ensemble import RandomForestClassifier as RandomForestClassifier_ex
@@ -91,12 +91,12 @@ def get_RF_importance(x,
         return feature_importance, score_test
 
 def get_correlation_coefficients(x, y):
-    # TODO: more correlation coefficients
+    # TODO: kwargs
     x, y = remove_bad([x, y])
-    spearmanr_res = spearmanr(x, y)
     return {
-        'spearmanr': (spearmanr_res[0], spearmanr_res[1]),
-        'pearsonr': pearsonr(x, y)
+        'spearmanr': spearmanr(x, y),
+        'pearsonr': pearsonr(x, y),
+        'kendalltau': kendalltau(x, y)
     }
 
 
