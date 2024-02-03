@@ -1,12 +1,13 @@
 import pytest
 import numpy as np
+import pandas as pd
+import astropy.units as u
 from asa.dataset import Dataset
 from asa.dataset import parse_inequality, parse_and_or, parse_op
 import asa.uncertainty as unc
 
 
 class TestDataset:
-
     def gen_dataset(self):
         x = np.arange(10)
         y = np.arange(10) * 2
@@ -136,11 +137,25 @@ class TestDataset:
                                             debug=debug),
             np.array((x > 3) & ((y > 5) | (z < 2))))
 
-        # complex 
+        # complex
         assert np.array_equal(
-            dataset.inequality_to_subsample("[(x + 1)/2 > 3 & [ y > 5/2 | z < 2+1]]",
-                                            debug=debug),
+            dataset.inequality_to_subsample(
+                "[(x + 1)/2 > 3 & [ y > 5/2 | z < 2+1]]", debug=debug),
             np.array((x > 5) & ((y > 2.5) | (z < 3))))
+
+        # bool
+        dataset['x_bool'] = x > 5
+        dataset['y_bool'] = y > 5
+        assert np.array_equal(
+            dataset.inequality_to_subsample("x_bool & y_bool", debug=debug),
+            np.array((x > 5) & (y > 5)))
+
+        # bool and binary
+        dataset['x_bin'] = dataset['x_bool'].astype(int)
+        dataset['y_bin'] = dataset['y_bool'].astype(int)
+        assert np.array_equal(
+            dataset.inequality_to_subsample("x_bool & y_bin", debug=debug),
+            np.array((x > 5) & (y > 5)))
 
     def test_check_same_length(self):
 
@@ -168,6 +183,9 @@ class TestDataset:
         dataset, x, y, z = self.gen_dataset()
         dataset['x'] = x * 2
         assert np.array_equal(dataset['x'], x * 2)
+        dataset[['x', 'y']] = np.array([x * 2, y * 3]).T
+        assert np.array_equal(dataset['x'], x * 2)
+        assert np.array_equal(dataset['y'], y * 3)
 
         dataset, x, y, z = self.gen_dataset()
         dataset[:, 'x'] = x * 2
@@ -181,6 +199,14 @@ class TestDataset:
         dataset, x, y, z = self.gen_dataset()
         dataset['x2'] = x * 2
         assert np.array_equal(dataset['x2'], x * 2)
+        # two new columns
+        dataset[['x3', 'x4']] = np.array([x * 2, y * 3]).T
+        assert np.array_equal(dataset['x3'], x * 2)
+        assert np.array_equal(dataset['x4'], y * 3)
+        # new column and update
+        dataset[['x3', 'x5']] = np.array([x, y]).T
+        assert np.array_equal(dataset['x3'], x)
+        assert np.array_equal(dataset['x5'], y)
 
     def test_construct(self):
         _, x, y, z = self.gen_dataset()
@@ -255,6 +281,21 @@ class TestDataset:
         x_err = (np.arange(10) + 1) * 0.1
         dataset = Dataset(np.array([x, x_err]).T, ['x', 'x_err'])
         assert np.array_equal(dataset.get_data_by_name('x'), x)
+
+        # --- with unit
+        assert np.array_equal(dataset.get_data_by_name('x', with_unit=True), x)
+        dataset.update_units({'x': u.cm})
+        assert np.array_equal(dataset.get_data_by_name('x', with_unit=True),
+                              x * u.cm)
+        # do not with unit for err, snr, or op
+        assert np.array_equal(
+            dataset.get_data_by_name('x_err', with_unit=True), x_err)
+        assert np.array_equal(
+            dataset.get_data_by_name('x_snr', with_unit=True),
+            np.abs(x / x_err))
+        assert np.array_equal(
+            dataset.get_data_by_name('log10@x', with_unit=True), np.log10(x))
+
         assert np.array_equal(dataset.get_data_by_name('x_err'), x_err)
         assert np.allclose(dataset.get_data_by_name('x_snr'),
                            np.abs(x / x_err))
@@ -324,12 +365,60 @@ class TestDataset:
         assert len(dataset.random_subsample(5)) == 5
         assert dataset.random_subsample(5, as_bool=True).sum() == 5
 
-
         assert len(dataset.random_subsample(0.5)) == 5
-        
 
         for _ in range(10):
             subsample = dataset.random_subsample(3, input_subsample='x<5')
             assert len(subsample) == 3
             assert np.all(x[subsample] < 5)
 
+    def test_get_label_by_name(self):
+        dataset, x, y, z = self.gen_dataset()
+        assert dataset.get_label_by_name('x') == 'x label '
+        assert dataset.get_label_by_name('x', with_unit=False) == 'x label'
+        assert dataset.get_label_by_name('log10@x') == r'$\log$x label'
+
+        assert dataset.get_label_by_name(
+            'log10@x', op_bracket='[{label}]') == r'$\log$[x label]'
+        assert dataset.get_label_by_name(
+            'log10@x', op_bracket='({label})') == r'$\log$(x label)'
+
+        dataset.update_labels({"log10@x": 'log10x'})
+        assert dataset.get_label_by_name('log10@x',
+                                         with_unit=False) == 'log10x'
+
+    def test_get_unit_by_name(self):
+        dataset, x, y, z = self.gen_dataset()
+        assert dataset.get_unit_by_name('x') == 1
+        assert dataset.get_unit_by_name('y') == 1
+
+        dataset.update_units({'x': u.cm})
+        assert dataset.get_unit_by_name('x') == u.cm
+
+    def test_add_col(self):
+        dataset, x, y, z = self.gen_dataset()
+        dataset.add_col(x * 2, 'x2')
+        assert np.array_equal(dataset['x2'], x * 2)
+
+        # should raise error
+        with pytest.raises(ValueError) as excinfo:
+            dataset.add_col(x * u.cm, 'x3')
+
+        dataset.update_units({'x3': u.cm, 'x4': u.cm})
+        dataset.add_col(x * u.cm, 'x3')
+        assert np.array_equal(dataset['x3'], x)
+        dataset.add_col(x * u.m, 'x4')
+        assert np.array_equal(dataset['x4'], x * 100)
+
+        dataset.add_col([x**2, 2**x], ['x6', 'x7'])
+        assert np.array_equal(dataset['x6'], x**2)
+        assert np.array_equal(dataset['x7'], 2**x)
+
+    def test_short_name(self):
+        dataset, x, y, z = self.gen_dataset()
+        assert np.array_equal(dataset.gdn('x'), dataset.get_data_by_name('x'))
+        assert np.array_equal(dataset.gdns(['x', 'y']),
+                              dataset.get_data_by_names(['x', 'y']))
+        assert dataset.gln('x') == dataset.get_label_by_name('x')
+        assert dataset.glns(['x',
+                             'y']) == dataset.get_labels_by_names(['x', 'y'])

@@ -5,6 +5,7 @@ from typing import Union, List, Callable, Any, Dict
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import astropy.units as u
 from .plot_methods import plot_contour, plot_trend, plot_corner, plot_scatter, plot_heatmap, plot_sample_to_point
 from .correlation_methods import get_RF_importance
 from .projection_methods import get_LDA_projection
@@ -39,6 +40,7 @@ class BasicDataset:
                  labels: Union[Dict, List, None] = None,
                  ranges: Union[Dict, List, None] = None,
                  unit_labels: Union[Dict, List, None] = None,
+                 units: Union[Dict, List, None] = None,
                  snr_postfix='snr',
                  err_postfix='err') -> None:
         self.data: pd.DataFrame
@@ -46,6 +48,7 @@ class BasicDataset:
         self.labels: Dict[str, str]
         self.ranges: Dict[str, Union[List, None]]
         self.unit_labels: Dict[str, str]
+        self.units: Dict[str, u.Unit]
 
         self.snr_postfix: str = snr_postfix
         self.err_postfix: str = err_postfix
@@ -64,35 +67,22 @@ class BasicDataset:
 
         self.names = np.asarray(names, dtype='<U64')
 
-        if isinstance(labels, dict):
-            self.labels = labels
-        elif isinstance(labels, list):
-            self.labels = {name: labels[i] for i, name in enumerate(names)}
-        elif labels is None:
-            self.labels = {}
-        else:
-            raise ValueError('labels should be dict or list')
+        self.labels = self._init_parameter(labels, 'labels', names)
+        self.ranges = self._init_parameter(ranges, 'ranges', names)
+        self.unit_labels = self._init_parameter(unit_labels, 'unit_labels',
+                                                names)
+        self.units = self._init_parameter(units, 'units', names)
 
-        if isinstance(ranges, dict):
-            self.ranges = ranges
-        elif isinstance(ranges, list):
-            self.ranges = {name: ranges[i] for i, name in enumerate(names)}
-        elif ranges is None:
-            self.ranges = {}
-        else:
-            raise ValueError('ranges should be dict or list')
+    def _init_parameter(self, parameter, parameter_name, names):
 
-        if isinstance(unit_labels, dict):
-            self.unit_labels = unit_labels
-        elif isinstance(unit_labels, list):
-            self.unit_labels = {
-                name: unit_labels[i]
-                for i, name in enumerate(names)
-            }
-        elif unit_labels is None:
-            self.unit_labels = {}
+        if isinstance(parameter, dict):
+            return parameter
+        elif isinstance(parameter, list):
+            return {name: parameter[i] for i, name in enumerate(names)}
+        elif parameter is None:
+            return {}
         else:
-            raise ValueError('unit_labels should be dict or list')
+            raise ValueError(f'{parameter_name} should be dict or list')
 
     def __iter__(self):
         return iter(self.data.columns)
@@ -155,26 +145,30 @@ class BasicDataset:
 
             if isinstance(key, str):
                 if key in names_list:
-                    key_idx: Union[int, List[int],
-                                   None] = names_list.index(key)
+                    self.data.iloc[:, names_list.index(key)] = value
                 else:
                     self.add_col(value, key)
-                    key_idx = None
             else:
                 key_idx = []
                 new_names = []
-                for this_k in key:
+                new_value_idx = []
+                old_value_idx = []
+                for i, this_k in enumerate(key):
                     if this_k in names_list:
                         key_idx.append(names_list.index(this_k))
+                        old_value_idx.append(i)
                     else:
                         new_names.append(this_k)
+                        new_value_idx.append(i)
 
                 # sourcery skip: simplify-len-comparison
+                # add new columns
                 if len(new_names) > 0:
-                    self.add_col(value, new_names)
+                    self.add_col(value[:, new_value_idx], new_names)
 
-            if key_idx is not None:
-                self.data.iloc[:, key_idx] = value
+                # update existing columns
+                if key_idx:
+                    self.data.iloc[:, key_idx] = value[:, old_value_idx]
 
         else:
             self.data.iloc[key] = value
@@ -205,18 +199,45 @@ class BasicDataset:
     def update_ranges(self, ranges_dict) -> None:
         self.ranges.update(ranges_dict)
 
+    def update_units(self, units_dict) -> None:
+        self.units.update(units_dict)
+
     def summary(self, stats_info=False) -> None:
         print(self.__str__())
         if stats_info:
             print(self.data.describe())
 
     def add_col(self, new_cols, new_names) -> None:
+        '''
+        Input:
+            new_cols: array-like except list or tuple, (n_samples, n_features) or (n_samples,); 
+                      if list or tuple, (n_features, ), each element should be array-like
+            new_names: str or list of str
+
+        Add new columns to the dataset
+        '''
 
         new_names = string_to_list(new_names)
 
         for name in new_names:
             if name in self.names:
                 raise ValueError(f'{name} already exists in the dataset')
+
+        if isinstance(new_cols, list) or isinstance(new_cols, tuple):
+            for nc, nn in zip(new_cols, new_names):
+                self.add_col(nc, nn)
+            return
+
+        # check units if new_cols is 1d
+        d_new_cols = np.asarray(new_cols).ndim
+        if d_new_cols == 1:
+            if isinstance(new_cols, u.Quantity):
+                if new_names[0] in self.units:
+                    new_cols = new_cols.to(self.units[new_names[0]]).value
+                else:
+                    raise ValueError(
+                        f'You are trying to add a column with unit, but the unit of {new_names[0]} is not specified in the dataset. Please specify the unit of {new_names[0]} first.'
+                    )
 
         new_cols = np.asarray(new_cols)
         if new_cols.ndim == 1:
@@ -280,7 +301,13 @@ class BasicDataset:
         else:
             return name in self.names
 
-    def get_data_by_name(self, name) -> np.ndarray:
+    def get_data_by_name(self, name, with_unit=False) -> np.ndarray:
+        '''
+        with_unit:
+            If True, return the data with unit
+            If False, return the data without unit
+            Ignored when get snr, err, or with operation
+        '''
         # sourcery skip: remove-unnecessary-else, swap-if-else-branches
         if name.endswith(f'_{self.snr_postfix}'):
             return self.get_snr_by_name(name)
@@ -290,7 +317,12 @@ class BasicDataset:
             op, name = name.split('@')
             return self.OP_MAP[op](self[name].to_numpy())
         else:
-            return self[name].to_numpy()
+            if with_unit:
+                return self[name].to_numpy() * self.get_unit_by_name(name)
+            else:
+                return self[name].to_numpy()
+
+    gdn = get_data_by_name
 
     def get_snr_by_name(self, snr_name: str) -> np.ndarray:
         '''
@@ -352,21 +384,41 @@ class BasicDataset:
     def get_data_by_names(self, names) -> np.ndarray:
         return np.asarray([self.get_data_by_name(name) for name in names]).T
 
-    def get_label_by_name(self, name, with_unit=True) -> str:
+    gdns = get_data_by_names
+
+    def get_label_by_name(self,
+                          name,
+                          with_unit=True,
+                          op_bracket='{label}') -> str:
         # sourcery skip: remove-unnecessary-else, swap-if-else-branches
 
         unit = self.get_unit_label_by_name(name) if with_unit else ''
+        if name in self.labels:
+            return self.labels[name] + unit
         if '@' in name:
             op, name = name.split('@')
-            label = self.OP_MAP_LABEL[op] + self.labels.get(name, name) + unit
+            label = self.OP_MAP_LABEL[op] + op_bracket.format(
+                label=self.labels.get(name, name)) + unit
         else:
             label = self.labels.get(name, name) + unit
         return label.strip()
 
-    def get_labels_by_names(self, names, with_unit=True) -> List[str]:
+    gln = get_label_by_name
+
+    def get_labels_by_names(self,
+                            names,
+                            with_unit=True,
+                            op_bracket='{label}') -> List[str]:
         return [
-            self.get_label_by_name(name, with_unit=with_unit) for name in names
+            self.get_label_by_name(name,
+                                   with_unit=with_unit,
+                                   op_bracket=op_bracket) for name in names
         ]
+
+    glns = get_labels_by_names
+
+    def get_unit_by_name(self, name) -> u.Unit:
+        return self.units.get(name, 1)
 
     def get_unit_label_by_name(self, name):
         if '@' in name:
@@ -470,11 +522,15 @@ class BasicDataset:
                 }[meta_inequality_list[i]]
                 continue
             if meta_inequality_list[i] not in ['&', '|']:
-                all_subsample.append(
-                    self.inequality_to_subsample_single(
-                        meta_inequality_list[i], debug=False))
-                meta_inequality_list[i] = f'all_subsample[{j}]'
-                j += 1
+                if self.is_legal_name(meta_inequality_list[i]):
+                    meta_inequality_list[
+                        i] = f'self.string_to_subsample("{meta_inequality_list[i]}")'
+                else:
+                    all_subsample.append(
+                        self.inequality_to_subsample_single(
+                            meta_inequality_list[i], debug=debug))
+                    meta_inequality_list[i] = f'all_subsample[{j}]'
+                    j += 1
 
         command = "".join(meta_inequality_list)
         if debug:
@@ -494,7 +550,11 @@ class BasicDataset:
 
         op_list = ['<=', '>=', '<', '>', '==']
         # a > b > c <=> (a > b) & (b > c)
+        # string begin with 2:, but i begin with 0
         for i, string in enumerate(inequality_list[2:]):
+            if debug:
+                print("string:", string)
+                print("op_list:", op_list)
             if string not in op_list:
                 this_inequality = inequality_list[i:i + 3]
                 # enumerate [a, >, b]
@@ -509,7 +569,8 @@ class BasicDataset:
 
                 command = "".join(this_inequality)
                 if debug:
-                    print(this_inequality)
+                    print("this_inequality:", this_inequality)
+                    print("command:", command)
 
                 subsample = subsample & eval(command)
 
@@ -621,6 +682,7 @@ class Dataset(BasicDataset):
                  labels=None,
                  ranges=None,
                  unit_labels=None,
+                 units=None,
                  snr_postfix='snr',
                  err_postfix='err') -> None:
 
@@ -629,6 +691,7 @@ class Dataset(BasicDataset):
                          labels=labels,
                          ranges=ranges,
                          unit_labels=unit_labels,
+                         units=units,
                          snr_postfix=snr_postfix,
                          err_postfix=err_postfix)
 
