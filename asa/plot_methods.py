@@ -133,7 +133,7 @@ def plot_trend(x,
 
     # TODO: extract as a standalone method, support more statistic
 
-    is_y_in_range = (y > yrange[0]) & (y < yrange[1])
+    is_y_in_range = (y >= yrange[0]) & (y <= yrange[1])
 
     loads = [
         weighted_binned_statistic(x[is_y_in_range],

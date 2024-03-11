@@ -3,7 +3,7 @@ from scipy.spatial import KDTree
 
 
 class LOESS2D:
-    def __init__(self, x, y, val, n_nbr, w=None, boxsize=None, xy_ratio=1):
+    def __init__(self, x, y, val, n_nbr, w=None, boxsize=None, xy_ratio=1, verbose=False):
         """
         x, y, val: ndarray with shape (N, )
             input coordinate and values
@@ -32,7 +32,8 @@ class LOESS2D:
             raise ValueError(
                 "Number of smoothing neighbors exceeds the total number of points"
             )
-        print("# of neightbours for smoothing: %d" % self._n_nbr)
+        if verbose:
+            print("# of neightbours for smoothing: %d" % self._n_nbr)
 
     def __call__(self, x, y):
         x_norm = self._xnorm(x)
