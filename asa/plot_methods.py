@@ -140,20 +140,26 @@ def plot_trend(x,
         y_statistic.append(up_name)
 
     _, _, _, statistic = bin_1d(x[is_y_in_range],
-                                                 y[is_y_in_range],
-                                                 weights=weights[is_y_in_range],
-                                                 x_statistic=['median'],
-                                                 y_statistic=y_statistic,
-                                                 bins=bins,
-                                                 range=xrange,
-                                                 min_data=N_min)
-
-    ax.plot(statistic['x_median'], statistic[f'y_{ytype}'], **plot_kwargs)
+                                y[is_y_in_range],
+                                weights=weights[is_y_in_range],
+                                x_statistic=['median'],
+                                y_statistic=y_statistic,
+                                bins=bins,
+                                range=xrange,
+                                min_data=N_min)
 
     if ifscatter:
         if fkind == "errorbar":
             if errorbar_kwargs is None:
                 errorbar_kwargs = {}
+                errorbar_kwargs["color"] = plot_kwargs.get("color")
+                errorbar_kwargs["label"] = plot_kwargs.get("label")
+            else:
+                if "color" not in errorbar_kwargs:
+                    errorbar_kwargs["color"] = plot_kwargs.get("color")
+                if "label" not in errorbar_kwargs:
+                    errorbar_kwargs["label"] = plot_kwargs.get("label")
+            
             ax.errorbar(
                 statistic['x_median'],
                 statistic[f'y_{ytype}'],
@@ -161,6 +167,8 @@ def plot_trend(x,
                       statistic[f'y_{up_name}'] - statistic[f'y_{ytype}']),
                 **errorbar_kwargs)
         elif fkind == "fbetween":
+            ax.plot(statistic['x_median'], statistic[f'y_{ytype}'],
+                    **plot_kwargs)
             if fbetween_kwargs is None:
                 fbetween_kwargs = {}
                 fbetween_kwargs["color"] = plot_kwargs.get("color", "r")
@@ -172,6 +180,8 @@ def plot_trend(x,
                     fbetween_kwargs["alpha"] = 0.2
             ax.fill_between(statistic['x_median'], statistic[f'y_{up_name}'],
                             statistic[f'y_{low_name}'], **fbetween_kwargs)
+    else:
+        ax.plot(statistic['x_median'], statistic[f'y_{ytype}'], **plot_kwargs)
 
 
 def plot_scatter(x,
