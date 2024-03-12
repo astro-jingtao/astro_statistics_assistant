@@ -3,7 +3,7 @@ from functools import partial
 import numpy as np
 from scipy.stats import binned_statistic, binned_statistic_2d
 
-from .weighted_statistic import median, mean, std, std_mean, std_median, q
+from . import weighted_statistic as w
 from .utils import flag_bad
 
 _range = range
@@ -164,13 +164,13 @@ def bin_1d(x,
 
 def get_stat_method(stat_name):
     mapper = {
-        'mean': mean,
-        'median': median,
-        'std': partial(std, ddof=1),
-        'std_mean': partial(std_mean, ddof=1),
-        'std_median': partial(std_median, bandwidth='silverman'),
+        'mean': w.mean,
+        'median': w.median,
+        'std': partial(w.std, ddof=1),
+        'std_mean': partial(w.std_mean, ddof=1),
+        'std_median': partial(w.std_median, bandwidth='silverman')
     }
     if stat_name.startswith('q:'):
-        return partial(q, q=float(stat_name[2:]))
+        return partial(w.q, q=float(stat_name[2:]))
     else:
         return mapper[stat_name]
