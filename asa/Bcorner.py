@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import print_function, absolute_import
-from contextlib import suppress
+from __future__ import absolute_import, print_function
 
 import logging
-import numpy as np
-import matplotlib.pyplot as pl
-from matplotlib.ticker import MaxNLocator, NullLocator
-from matplotlib.colors import LinearSegmentedColormap, colorConverter
-from matplotlib.ticker import ScalarFormatter
+from contextlib import suppress
 
-from .utils import flag_bad, auto_set_range
+import matplotlib.pyplot as pl
+import numpy as np
+from matplotlib.colors import LinearSegmentedColormap, colorConverter
+from matplotlib.ticker import MaxNLocator, NullLocator, ScalarFormatter
+
+from .utils import auto_set_range, flag_bad
 
 try:
     from scipy.ndimage import gaussian_filter
@@ -575,6 +575,7 @@ def quantile(x, q, weights=None, N_min=2):
         cdf = np.append(0, cdf)
         return np.interp(q, cdf, x[idx]).tolist()
 
+
 # TODO: reject to do KDE when sample size is too large
 def hist2d(x,
            y,
@@ -668,9 +669,16 @@ def hist2d(x,
     x = np.asarray(x)
     y = np.asarray(y)
 
+    if weights is not None:
+        weights = np.asarray(weights)
+        if len(x) != len(weights):
+            raise ValueError("Dimension mismatch: len(weights) != len(x)")
+
     bad = flag_bad(x) | flag_bad(y)
     x = x[~bad]
     y = y[~bad]
+    if weights is not None:
+        weights = weights[~bad]
 
     if kde_smooth and (not smooth is None):
         raise ValueError(
@@ -706,21 +714,20 @@ def hist2d(x,
     for i, l in enumerate(levels):
         contour_cmap[i][-1] *= float(i) / (len(levels) + 1)
 
+    # TODO: early check dynamic range
+    # raise ValueError("It looks like at least one of your sample columns "
+    #                  "have no dynamic range. You could try using the "
+    #                  "'range' argument."
+
     # We'll make the 2D histogram to directly estimate the density.
-    try:
-        H, X, Y = np.histogram2d(x.flatten(),
-                                 y.flatten(),
-                                 bins=bins,
-                                 range=list(map(np.sort, range)),
-                                 weights=weights)
-    except ValueError:
-        raise ValueError("It looks like at least one of your sample columns "
-                         "have no dynamic range. You could try using the "
-                         "'range' argument.")
-    
+    H, X, Y = np.histogram2d(x.flatten(),
+                             y.flatten(),
+                             bins=bins,
+                             range=list(map(np.sort, range)),
+                             weights=weights)
+
     # Compute the bin centers.
     X1, Y1 = 0.5 * (X[1:] + X[:-1]), 0.5 * (Y[1:] + Y[:-1])
-
     """ 
     If use KDE, we do not need np.histogram2d in principle
     But no elegent implementation found for that
@@ -827,7 +834,7 @@ def hist2d(x,
             if isinstance(_colors, tuple):
                 _colors = [_colors]
             contour_kwargs["colors"] = _colors
-        
+
         ax.contour(X2, Y2, H2.T, V, **contour_kwargs)
 
     ax.set_xlim(range[0])

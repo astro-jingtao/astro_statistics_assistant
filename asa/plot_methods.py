@@ -8,7 +8,7 @@ from scipy.stats import binned_statistic
 
 from .Bcorner import corner, hist2d, quantile
 from .utils import flag_bad, auto_set_range, is_empty
-from .binning_methods import weighted_binned_statistic, bin_2d
+from .binning_methods import bin_1d, bin_2d
 from .loess2d import loess_2d_map
 
 # TODO: extract common code
@@ -117,8 +117,9 @@ def plot_trend(x,
     y = y[~bad]
 
     if is_empty(x) or is_empty(y):
-        warnings.warn("The x or y are empty after remove bad data skip the plot")
-        return 
+        warnings.warn(
+            "The x or y are empty after remove bad data skip the plot")
+        return
 
     range = auto_set_range(x, y, range, auto_p)
 
@@ -128,65 +129,48 @@ def plot_trend(x,
     if weights is None:
         weights = np.ones_like(x)
 
-    func_median = lambda y, w: quantile(y, 0.5, weights=w)
-    func_mean = lambda y, w: np.average(y, weights=w).reshape(1)
-
-    # TODO: extract as a standalone method, support more statistic
-
     is_y_in_range = (y >= yrange[0]) & (y <= yrange[1])
 
-    loads = [
-        weighted_binned_statistic(x[is_y_in_range],
-                                  x[is_y_in_range],
-                                  weights[is_y_in_range],
-                                  statistic=func_median,
-                                  bins=bins,
-                                  range=xrange)
-    ]
-
-    if ytype == "median":
-        y_statistic = func_median
-    elif ytype == "mean":
-        y_statistic = func_mean
-
-    statistic_list = [y_statistic]
-
+    y_statistic = [ytype]
     if ifscatter:
-        lower_statistic = lambda y, w: quantile(y, q=lowlim / 100, weights=w)
-        upper_statistic = lambda y, w: quantile(y, q=uplim / 100, weights=w)
+        low_name = f"q:{lowlim/100:.2f}"
+        up_name = f"q:{uplim/100:.2f}"
 
-        statistic_list.append(lower_statistic)
-        statistic_list.append(upper_statistic)
+        y_statistic.append(low_name)
+        y_statistic.append(up_name)
 
-    for statistic in statistic_list:
-        _value = weighted_binned_statistic(x[is_y_in_range],
-                                           y[is_y_in_range],
-                                           weights[is_y_in_range],
-                                           statistic=statistic,
-                                           bins=bins,
-                                           range=xrange)
-        loads.append(_value)
-
-    loads = np.hstack(loads)
-
-    N_in_each_bin, _, _ = binned_statistic(x[is_y_in_range],
-                                           x[is_y_in_range],
-                                           statistic='count',
-                                           bins=bins,
-                                           range=xrange)
-    loads[N_in_each_bin < N_min] = np.nan
-
-    ax.plot(loads[:, 0], loads[:, 1], **plot_kwargs)
-
+    _, _, _, statistic = bin_1d(x[is_y_in_range],
+                                y[is_y_in_range],
+                                weights=weights[is_y_in_range],
+                                x_statistic=['median'],
+                                y_statistic=y_statistic,
+                                bins=bins,
+                                range=xrange,
+                                min_data=N_min)
+    
+    # TODO: support the error of median or mean
     if ifscatter:
         if fkind == "errorbar":
             if errorbar_kwargs is None:
                 errorbar_kwargs = {}
-            ax.errorbar(loads[:, 0],
-                        loads[:, 1],
-                        yerr=(loads[:, 3] - loads[:, 2]) / 2.0,
-                        **errorbar_kwargs)
+                errorbar_kwargs["color"] = plot_kwargs.get("color")
+                errorbar_kwargs["label"] = plot_kwargs.get("label")
+            else:
+                if "color" not in errorbar_kwargs:
+                    errorbar_kwargs["color"] = plot_kwargs.get("color")
+                if "label" not in errorbar_kwargs:
+                    errorbar_kwargs["label"] = plot_kwargs.get("label")
+            
+            # TODO: deal with ytype is mean and yerr is negative 
+            ax.errorbar(
+                statistic['x_median'],
+                statistic[f'y_{ytype}'],
+                yerr=(statistic[f'y_{ytype}'] - statistic[f'y_{low_name}'],
+                      statistic[f'y_{up_name}'] - statistic[f'y_{ytype}']),
+                **errorbar_kwargs)
         elif fkind == "fbetween":
+            ax.plot(statistic['x_median'], statistic[f'y_{ytype}'],
+                    **plot_kwargs)
             if fbetween_kwargs is None:
                 fbetween_kwargs = {}
                 fbetween_kwargs["color"] = plot_kwargs.get("color", "r")
@@ -196,8 +180,10 @@ def plot_trend(x,
                     fbetween_kwargs["color"] = plot_kwargs.get("color", "r")
                 if "alpha" not in fbetween_kwargs:
                     fbetween_kwargs["alpha"] = 0.2
-            ax.fill_between(loads[:, 0], loads[:, 3], loads[:, 2],
-                            **fbetween_kwargs)
+            ax.fill_between(statistic['x_median'], statistic[f'y_{up_name}'],
+                            statistic[f'y_{low_name}'], **fbetween_kwargs)
+    else:
+        ax.plot(statistic['x_median'], statistic[f'y_{ytype}'], **plot_kwargs)
 
 
 def plot_scatter(x,
@@ -230,8 +216,9 @@ def plot_scatter(x,
     z = z[~bad]
 
     if is_empty(x) or is_empty(y) or is_empty(z):
-        warnings.warn("The x, y or z are empty after remove bad data skip the plot")
-        return 
+        warnings.warn(
+            "The x, y or z are empty after remove bad data skip the plot")
+        return
 
     range = auto_set_range(x, y, range, auto_p)
 
@@ -402,8 +389,9 @@ def plot_heatmap(x,
     z = z[~bad]
 
     if is_empty(x) or is_empty(y) or is_empty(z):
-        warnings.warn("The x, y or z are empty after remove bad data skip the plot")
-        return 
+        warnings.warn(
+            "The x, y or z are empty after remove bad data skip the plot")
+        return
 
     # TODO: z range
     range = auto_set_range(x, y, range, auto_p)
