@@ -196,7 +196,7 @@ def corner(xs,
     # Parse the parameter ranges.
     if range is None:
         if "extents" in hist2d_kwargs:
-            logging.warn("Deprecated keyword argument 'extents'. "
+            logging.warning("Deprecated keyword argument 'extents'. "
                          "Use 'range' instead.")
             range = hist2d_kwargs.pop("extents")
         else:
@@ -230,7 +230,7 @@ def corner(xs,
         range = list(range)
         for i, _ in enumerate(range):
             try:
-                emin, emax = range[i]
+                _, _ = range[i]
             except TypeError:
                 q = [0.5 - 0.5 * range[i], 0.5 + 0.5 * range[i]]
                 range[i] = quantile(xs[i], q, weights=weights)
@@ -402,7 +402,7 @@ def corner(xs,
         ax.set_xlim(range[i])
         try:
             maxn = max(np.max(n), maxn_add)
-        except:
+        except Exception:
             maxn = np.max(n)
         if scale_hist:
             ax.set_ylim(-0.1 * maxn, 1.1 * maxn)
@@ -771,7 +771,7 @@ def hist2d(x,
         for i, v0 in enumerate(levels):
             try:
                 V[i] = Hflat[sm <= v0][-1]
-            except:
+            except Exception:
                 V[i] = Hflat[0]
         V.sort()
         m = np.diff(V) == 0
