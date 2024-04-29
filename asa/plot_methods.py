@@ -1,15 +1,16 @@
-from functools import partial
 import warnings
+from functools import partial
 
-import numpy as np
 import matplotlib.pyplot as plt
-from statsmodels.stats.weightstats import DescrStatsW
+import numpy as np
+from astropy.stats import poisson_conf_interval
 from scipy.stats import binned_statistic
+from statsmodels.stats.weightstats import DescrStatsW
 
 from .Bcorner import corner, hist2d, quantile
-from .utils import flag_bad, auto_set_range, is_empty
 from .binning_methods import bin_1d, bin_2d
 from .loess2d import loess_2d_map
+from .utils import auto_set_range, flag_bad, is_empty
 
 # TODO: extract common code
 # - flag and remove bad
@@ -147,7 +148,7 @@ def plot_trend(x,
                                 bins=bins,
                                 range=xrange,
                                 min_data=N_min)
-    
+
     # TODO: support the error of median or mean
     if ifscatter:
         if fkind == "errorbar":
@@ -160,8 +161,8 @@ def plot_trend(x,
                     errorbar_kwargs["color"] = plot_kwargs.get("color")
                 if "label" not in errorbar_kwargs:
                     errorbar_kwargs["label"] = plot_kwargs.get("label")
-            
-            # TODO: deal with ytype is mean and yerr is negative 
+
+            # TODO: deal with ytype is mean and yerr is negative
             ax.errorbar(
                 statistic['x_median'],
                 statistic[f'y_{ytype}'],
@@ -522,3 +523,57 @@ def plot_line(x=None,
             return
 
     raise ValueError("Invalid input")
+
+# TODO: consider P(p|k, N)
+def plot_hist(x,
+              bins=10,
+              range=None,
+              weights=None,
+              ax=None,
+              density=False,
+              interval="frequentist-confidence",
+              sigma=1,
+              background=0,
+              confidence_level=None,
+              return_data=False,
+              **kwargs):
+    """
+    Plot the histogram of x
+    """
+    if ax is None:
+        ax = plt.gca()
+
+    N, edges = np.histogram(x,
+                            bins=bins,
+                            range=range,
+                            weights=weights,
+                            density=False)
+    lower, upper = poisson_conf_interval(N,
+                                         interval=interval,
+                                         sigma=sigma,
+                                         background=background,
+                                         confidence_level=confidence_level)
+    centers = (edges[:-1] + edges[1:]) / 2
+
+    d_bin = edges[1:] - edges[:-1]
+
+    if density:
+        scaler = np.sum(N) * d_bin
+        N = N / scaler
+        lower = lower / scaler
+        upper = upper / scaler
+
+    ax.bar(centers,
+           N,
+           width=d_bin,
+           yerr=[N - lower, upper - N],
+           **kwargs)
+
+    if return_data:
+        return {
+            "N": N,
+            "edges": edges,
+            "centers": centers,
+            "lower": lower,
+            "upper": upper
+        }
