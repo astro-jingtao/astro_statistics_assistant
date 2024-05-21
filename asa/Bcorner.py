@@ -624,15 +624,25 @@ def hist2d(x,
        y_min = np.percentile(y, auto_p[1][0])
        y_max = np.percentile(y, auto_p[1][1])
        default: ([1, 99], [1, 99])
-
-    quiet : bool
-        If true, suppress warnings for small datasets.
+    
+    weights : Optional[array_like[nsamples,]]
+        An optional weight corresponding to each sample.
 
     levels : array_like
         The contour levels to draw.
 
+    smooth : float
+        The standard deviation of the Gaussian kernel used to smooth the
+        density values. If ``None``, no smoothing is applied.
+
     ax : matplotlib.Axes
         A axes instance on which to add the 2-D histogram.
+
+    color : str
+        The color of the datapoints, density map, and contours.
+
+    quiet : bool
+        If true, suppress warnings for small datasets.
 
     plot_datapoints : bool
         Draw the individual data points.

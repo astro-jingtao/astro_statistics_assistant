@@ -308,6 +308,7 @@ class BasicDataset:
             If False, return the data without unit
             Ignored when get snr, err, or with operation
         '''
+        # TODO: support subsample
         # sourcery skip: remove-unnecessary-else, swap-if-else-branches
         if name.endswith(f'_{self.snr_postfix}'):
             return self.get_snr_by_name(name)
@@ -494,12 +495,18 @@ class BasicDataset:
             If < 1, the fraction of samples to be selected
         '''
 
-        if N < 1:
-            N = int(N * self.data.shape[0])
-
         input_subsample = self.get_subsample(input_subsample)
+        N_input_subsample = input_subsample.sum()
 
-        subsample = np.random.choice(input_subsample.sum(), N, replace=False)
+        if N < 1:
+            N = int(N * N_input_subsample)
+
+        if N > N_input_subsample:
+            raise ValueError(
+                'N should not be larger than the number of samples in the subsample'
+            )
+
+        subsample = np.random.choice(N_input_subsample, N, replace=False)
         subsample = input_subsample.nonzero()[0][subsample]
 
         if as_bool:
@@ -548,6 +555,9 @@ class BasicDataset:
         inequality_list = parse_inequality(inequality_string)
         subsample = np.ones(self.data.shape[0]).astype(bool)
 
+        if debug:
+            print("inequality_list:", inequality_list)
+
         op_list = ['<=', '>=', '<', '>', '==']
         # a > b > c <=> (a > b) & (b > c)
         # string begin with 2:, but i begin with 0
@@ -560,6 +570,8 @@ class BasicDataset:
                 # enumerate [a, >, b]
                 for j in range(len(this_inequality)):
                     all_element_in_this = parse_op(this_inequality[j])
+                    if debug:
+                        print("all_element_in_this:", all_element_in_this)
                     # enumerate [a1, +, a2]
                     for k, ele in enumerate(all_element_in_this):
                         if self.is_legal_name(ele):
@@ -805,7 +817,6 @@ class Dataset(BasicDataset):
         ylim:
             If None, do not set ylim
             If list, set as ylim
-
         '''
 
         x = self.get_data_by_name(x_name)
@@ -1085,6 +1096,29 @@ class Dataset(BasicDataset):
                 axes=None,
                 subplots_kwargs=None,
                 **kwargs):
+        """
+
+        Parameters
+        ----------
+        x_names: str or list of str
+            The names of x variables
+        
+        y_names: str or list of str
+            The names of y variables
+        
+        broadcast: bool
+            If True, broadcast the plot to all combinations of x and y.
+            If False, plot each combination separately.
+
+        axes: matplotlib.axes.Axes or array of Axes
+            The axes to plot on. If None, create new axes
+
+        subplots_kwargs: dict
+            The kwargs for auto_subplots
+
+        **kwargs:
+            The kwargs for self.plot_xygeneral or self.plot_xygeneral_no_broadcast
+        """
 
         if broadcast:
             return self.plot_xygeneral('contour',
@@ -1103,6 +1137,7 @@ class Dataset(BasicDataset):
                 **kwargs)
 
     def corner(self, names=None, axes=None, **kwargs):
+        # TODO: doc string
         if names is None:
             names = self.names
 
@@ -1515,7 +1550,7 @@ def auto_subplots(n1, n2=None, figshape=None, figsize=None, dpi=400):
     fig, axes = plt.subplots(figshape[0],
                              figshape[1],
                              figsize=figsize,
-                             dpi=400)
+                             dpi=dpi)
     if not hasattr(axes, '__iter__'):
         axes = np.array([axes])
     return fig, axes

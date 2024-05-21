@@ -19,7 +19,6 @@ def plot_trend(x,
                y,
                bins=20,
                ytype='median',
-               fig=None,
                ax=None,
                range=None,
                auto_p=None,
@@ -189,7 +188,6 @@ def plot_trend(x,
 def plot_scatter(x,
                  y,
                  z=None,
-                 fig=None,
                  ax=None,
                  range=None,
                  auto_p=None,
@@ -287,6 +285,117 @@ def plot_corner(xs,
                 plot_add_1d=None,
                 dpi=None,
                 **hist2d_kwargs):
+    # docstring should be copied from Bcorner.corner
+    """
+    The wrapper of ``Bcorner.corner``.
+
+    Make a *sick* corner plot showing the projections of a data set in a
+    multi-dimensional space. kwargs are passed to hist2d() or used for
+    `matplotlib` styling.
+
+    Parameters
+    ----------
+    xs : array_like[nsamples, ndim]
+        The samples. This should be a 1- or 2-dimensional array. For a 1-D
+        array this results in a simple histogram. For a 2-D array, the zeroth
+        axis is the list of samples and the next axis are the dimensions of
+        the space.
+
+    bins : int or array_like[ndim,]
+        The number of bins to use in histograms, either as a fixed value for
+        all dimensions, or as a list of integers for each dimension.
+
+    weights : array_like[nsamples,]
+        The weight of each sample. If `None` (default), samples are given
+        equal weight.
+
+    color : str
+        A ``matplotlib`` style color for all histograms.
+
+    hist_bin_factor : float or array_like[ndim,]
+        This is a factor (or list of factors, one for each dimension) that
+        will multiply the bin specifications when making the 1-D histograms.
+        This is generally used to increase the number of bins in the 1-D plots
+        to provide more resolution.
+
+    smooth, smooth1d : float
+       The standard deviation for Gaussian kernel passed to
+       `scipy.ndimage.gaussian_filter` to smooth the 2-D and 1-D histograms
+       respectively. If `None` (default), no smoothing is applied.
+
+    labels : iterable (ndim,)
+        A list of names for the dimensions. If a ``xs`` is a
+        ``pandas.DataFrame``, labels will default to column names.
+
+    label_kwargs : dict
+        Any extra keyword arguments to send to the `set_xlabel` and
+        `set_ylabel` methods.
+
+    show_titles : bool
+        Displays a title above each 1-D histogram showing the 0.5 quantile
+        with the upper and lower errors supplied by the quantiles argument.
+
+    title_fmt : string
+        The format string for the quantiles given in titles. If you explicitly
+        set ``show_titles=True`` and ``title_fmt=None``, the labels will be
+        shown as the titles. (default: ``.2f``)
+
+    title_kwargs : dict
+        Any extra keyword arguments to send to the `set_title` command.
+
+    range : iterable (ndim,)
+        A list where each element is either a length 2 tuple containing
+        lower and upper bounds or a float in range (0., 1.)
+        giving the fraction of samples to include in bounds, e.g.,
+        [(0.,10.), (1.,5), 0.999, etc.].
+        If a fraction, the bounds are chosen to be equal-tailed.
+
+    truths : iterable (ndim,)
+        A list of reference values to indicate on the plots.  Individual
+        values can be omitted by using ``None``.
+
+    truth_color : str
+        A ``matplotlib`` style color for the ``truths`` makers.
+
+    scale_hist : bool
+        Should the 1-D histograms be scaled in such a way that the zero line
+        is visible?
+
+    quantiles : iterable
+        A list of fractional quantiles to show on the 1-D histograms as
+        vertical dashed lines.
+
+    verbose : bool
+        If true, print the values of the computed quantiles.
+
+    plot_contours : bool
+        Draw contours for dense regions of the plot.
+
+    use_math_text : bool
+        If true, then axis tick labels for very large or small exponents will
+        be displayed as powers of 10 rather than using `e`.
+
+    reverse : bool
+        If true, plot the corner plot starting in the upper-right corner
+        instead of the usual bottom-left corner
+
+    max_n_ticks: int
+        Maximum number of ticks to try to use
+
+    top_ticks : bool
+        If true, label the top ticks of each axis
+
+    fig : matplotlib.Figure
+        Overplot onto the provided figure object.
+
+    hist_kwargs : dict
+        Any extra keyword arguments to send to the 1-D histogram plots.
+
+    **hist2d_kwargs
+        Any remaining keyword arguments are sent to `corner.hist2d` to generate
+        the 2-D histogram plots.
+
+    """
     corner(xs,
            bins=bins,
            range=range,
@@ -340,6 +449,85 @@ def plot_contour(x,
                  contourf_kwargs=None,
                  data_kwargs=None,
                  pcolor_kwargs=None):
+    # docstring should be copied from Bcorner.hist2d
+    """
+    The wrapper of ``Bcorner.hist2d``.
+
+    Plot a 2-D histogram of samples.
+
+    Parameters
+    ----------
+    x : array_like[nsamples,]
+       The samples.
+
+    y : array_like[nsamples,]
+       The samples.
+
+    range: array_like[2, 2] or string
+       ([x_min, x_max], [y_min, y_max]), if not 'auto'
+       The range is automatically determined according to quantile specified by auto_p, if 'auto'
+       default: 'auto'
+
+    kde_smooth: if use kde smooth
+
+    auto_p: array_like[2, 2] or string
+       Used to generate range if range == 'auto'
+       x_min = np.percentile(x, auto_p[0][0])
+       x_max = np.percentile(x, auto_p[0][1])
+       y_min = np.percentile(y, auto_p[1][0])
+       y_max = np.percentile(y, auto_p[1][1])
+       default: ([1, 99], [1, 99])
+    
+    weights : Optional[array_like[nsamples,]]
+        An optional weight corresponding to each sample.
+
+    levels : array_like
+        The contour levels to draw.
+
+    smooth : float
+        The standard deviation of the Gaussian kernel used to smooth the
+        density values. If ``None``, no smoothing is applied.
+
+    ax : matplotlib.Axes
+        A axes instance on which to add the 2-D histogram.
+
+    color : str
+        The color of the datapoints, density map, and contours.
+
+    quiet : bool
+        If true, suppress warnings for small datasets.
+
+    plot_datapoints : bool
+        Draw the individual data points.
+
+    plot_density : bool
+        Draw the density colormap.
+
+    plot_contours : bool
+        Draw the contours.
+
+    no_fill_contours : bool
+        Add no filling at all to the contours (unlike setting
+        ``fill_contours=False``, which still adds a white fill at the densest
+        points).
+
+    fill_contours : bool
+        Fill the contours.
+
+    contour_kwargs : dict
+        Any additional keyword arguments to pass to the `contour` method.
+
+    contourf_kwargs : dict
+        Any additional keyword arguments to pass to the `contourf` method.
+
+    data_kwargs : dict
+        Any additional keyword arguments to pass to the `plot` method when
+        adding the individual data points.
+
+    pcolor_kwargs : dict
+        Any additional keyword arguments to pass to the `pcolor` method when
+        adding the density colormap.
+    """
     hist2d(x,
            y,
            bins=bins,
@@ -425,6 +613,17 @@ def plot_heatmap(x,
 
         return cont
 
+    elif map_kind == 'contourf':
+        if contour_kwargs is None:
+            contour_kwargs = {}
+        cont = ax.contourf(X, Y, Z, **contour_kwargs)
+        if set_clabel:
+            if clabel_kwargs is None:
+                clabel_kwargs = {}
+            ax.clabel(cont, **clabel_kwargs)
+
+        return cont
+
 
 def plot_sample_to_point(x,
                          y,
@@ -437,11 +636,33 @@ def plot_sample_to_point(x,
                          errorbar_kwargs=None):
     """
     The function to summarize a sample to a point and then plot it
-    
 
-    center_type: 'mean' or 'median'
-    error_type: 'std', 'std_mean' or 'quantile'
-    
+    Parameters:
+    - x: array-like
+        The x-coordinates of the sample.
+    - y: array-like
+        The y-coordinates of the sample.
+    - ax: matplotlib.axes.Axes, optional
+        The axes on which to plot the summarized point. If not provided, the current axes will be used.
+    - weights: array-like, optional
+        An array of weights associated with each data point. If not provided, all data points are assumed to have equal weight.
+    - ddof: int, optional
+        The delta degrees of freedom used in the calculation of standard deviation. Default is 0.
+    - center_type: str, optional
+        The method used to calculate the center point. Can be either 'mean' or 'median'. Default is 'mean'.
+    - error_type: str, optional
+        The method used to calculate the error bars. Can be 'std', 'std_mean', or 'quantile'. Default is 'std'.
+    - quantiles: array-like, optional
+        The quantiles used to calculate the error bars when error_type is 'quantile'. Default is None.
+    - errorbar_kwargs: dict, optional
+        Additional keyword arguments to be passed to the errorbar function.
+
+    Raises:
+    - ValueError: If center_type or error_type is not one of the specified options.
+
+    Returns:
+    - None
+
     """
     bad = flag_bad(x) | flag_bad(y)
     x = x[~bad]
@@ -492,7 +713,25 @@ def plot_line(x=None,
               b=None,
               ax=None,
               **kwargs):
+    """
+    Plot a line on the given axes.
 
+    Parameters:
+    - x: float, optional - The x-coordinate where the vertical line should be plotted.
+    - y: float, optional - The y-coordinate where the horizontal line should be plotted.
+    - p1: tuple, optional - The coordinates of the first point on the line.
+    - p2: tuple, optional - The coordinates of the second point on the line.
+    - k: float, optional - The slope of the line.
+    - b: float, optional - The y-intercept of the line.
+    - ax: matplotlib.axes.Axes, optional - The axes on which to plot the line.
+    - **kwargs: Additional keyword arguments to be passed to `ax.axline`.
+
+    Raises:
+    - ValueError: If the input is invalid.
+
+    Returns:
+    - None
+    """
     if ax is None:
         ax = plt.gca()
 

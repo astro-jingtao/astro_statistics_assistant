@@ -66,7 +66,7 @@ class TestDataset:
 
         dataset, x, y, z = self.gen_dataset()
 
-        debug = True
+        debug = False
 
         assert np.array_equal(
             dataset.inequality_to_subsample("x<5", debug=debug),
@@ -156,6 +156,13 @@ class TestDataset:
         assert np.array_equal(
             dataset.inequality_to_subsample("x_bool & y_bin", debug=debug),
             np.array((x > 5) & (y > 5)))
+
+        # (10 > a > 5) will raise error
+        # not a bug, we require the user to use [10 > a] & [a > 5]
+        # () is for nonlogical operation, [] is for logical operation
+        assert np.array_equal(
+            dataset.inequality_to_subsample("[10 > x > 5]", debug=debug),
+            np.array((x > 5) & (x < 10)))
 
     def test_check_same_length(self):
 
