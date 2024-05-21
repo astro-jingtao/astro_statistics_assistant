@@ -146,7 +146,7 @@ def plot_trend(x,
                                 bins=bins,
                                 range=xrange,
                                 min_data=N_min)
-    
+
     # TODO: support the error of median or mean
     if ifscatter:
         if fkind == "errorbar":
@@ -159,8 +159,8 @@ def plot_trend(x,
                     errorbar_kwargs["color"] = plot_kwargs.get("color")
                 if "label" not in errorbar_kwargs:
                     errorbar_kwargs["label"] = plot_kwargs.get("label")
-            
-            # TODO: deal with ytype is mean and yerr is negative 
+
+            # TODO: deal with ytype is mean and yerr is negative
             ax.errorbar(
                 statistic['x_median'],
                 statistic[f'y_{ytype}'],
