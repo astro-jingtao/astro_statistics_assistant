@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 import pandas as pd
 import astropy.units as u
-from asa.dataset import Dataset
+from asa.dataset import Dataset, Labels
 from asa.dataset import parse_inequality, parse_and_or, parse_op
 import asa.uncertainty as unc
 
@@ -381,14 +381,16 @@ class TestDataset:
 
     def test_get_label_by_name(self):
         dataset, x, y, z = self.gen_dataset()
-        assert dataset.get_label_by_name('x') == 'x label '
+        dataset.unit_labels = {'x': 'a'}
+        assert dataset.get_label_by_name('x') == 'x label a'
+        assert dataset.get_label_by_name('y') == 'y label'
         assert dataset.get_label_by_name('x', with_unit=False) == 'x label'
-        assert dataset.get_label_by_name('log10@x') == r'$\log$x label'
+        assert dataset.get_label_by_name('log10@x') == r'$\log$x label a'
 
         assert dataset.get_label_by_name(
-            'log10@x', op_bracket='[{label}]') == r'$\log$[x label]'
+            'log10@x', op_bracket='[{label}]') == r'$\log$[x label] a'
         assert dataset.get_label_by_name(
-            'log10@x', op_bracket='({label})') == r'$\log$(x label)'
+            'log10@x', op_bracket='({label})') == r'$\log$(x label) a'
 
         dataset.update_labels({"log10@x": 'log10x'})
         assert dataset.get_label_by_name('log10@x',
@@ -429,3 +431,29 @@ class TestDataset:
         assert dataset.gln('x') == dataset.get_label_by_name('x')
         assert dataset.glns(['x',
                              'y']) == dataset.get_labels_by_names(['x', 'y'])
+
+
+class TestLabels:
+    def test_get_label_by_name(self):
+        labels = Labels({
+            'x': 'x label',
+            'y': 'y label',
+            'z': 'z label'
+        },
+                        units={
+                            'x': 'a',
+                            'y': 'b',
+                            'z': 'c'
+                        })
+
+        assert labels.get('x') == 'x label a'
+        assert labels.get('x', with_unit=False) == 'x label'
+        assert labels.get('log10@x') == r'$\log$x label a'
+
+        assert labels.get(
+            'log10@x', op_bracket='[{label}]') == r'$\log$[x label] a'
+        assert labels.get(
+            'log10@x', op_bracket='({label})') == r'$\log$(x label) a'
+
+        labels.labels["log10@x"] = 'log10x'
+        assert labels.get('log10@x', with_unit=False) == 'log10x'
