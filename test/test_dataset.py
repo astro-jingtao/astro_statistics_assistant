@@ -440,20 +440,17 @@ class TestLabels:
             'y': 'y label',
             'z': 'z label'
         },
-                        units={
-                            'x': 'a',
-                            'y': 'b',
-                            'z': 'c'
-                        })
+                        units={'x': 'a'})
 
         assert labels.get('x') == 'x label a'
+        assert labels.get('y') == 'y label'
         assert labels.get('x', with_unit=False) == 'x label'
         assert labels.get('log10@x') == r'$\log$x label a'
 
-        assert labels.get(
-            'log10@x', op_bracket='[{label}]') == r'$\log$[x label] a'
-        assert labels.get(
-            'log10@x', op_bracket='({label})') == r'$\log$(x label) a'
+        assert labels.get('log10@x',
+                          op_bracket='[{label}]') == r'$\log$[x label] a'
+        assert labels.get('log10@x',
+                          op_bracket='({label})') == r'$\log$(x label) a'
 
         labels.labels["log10@x"] = 'log10x'
         assert labels.get('log10@x', with_unit=False) == 'log10x'
