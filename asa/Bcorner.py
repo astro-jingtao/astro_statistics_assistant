@@ -196,7 +196,7 @@ def corner(xs,
     # Parse the parameter ranges.
     if range is None:
         if "extents" in hist2d_kwargs:
-            logging.warn("Deprecated keyword argument 'extents'. "
+            logging.warning("Deprecated keyword argument 'extents'. "
                          "Use 'range' instead.")
             range = hist2d_kwargs.pop("extents")
         else:
@@ -230,7 +230,7 @@ def corner(xs,
         range = list(range)
         for i, _ in enumerate(range):
             try:
-                emin, emax = range[i]
+                _, _ = range[i]
             except TypeError:
                 q = [0.5 - 0.5 * range[i], 0.5 + 0.5 * range[i]]
                 range[i] = quantile(xs[i], q, weights=weights)
@@ -288,7 +288,14 @@ def corner(xs,
     if hist_kwargs is None:
         hist_kwargs = {}
     hist_kwargs["color"] = hist_kwargs.get("color", color)
-    if smooth1d is None:
+
+    if kde_smooth1d and not (smooth1d is None):
+        raise ValueError(
+            "kde_smooth1d and smooth1d cannot be set at the same time")
+
+    NO_1D_SMOOTH = (smooth1d is None) and (not kde_smooth1d)
+
+    if NO_1D_SMOOTH:
         hist_kwargs["histtype"] = hist_kwargs.get("histtype", "step")
 
     for i, x in enumerate(xs):
@@ -307,7 +314,7 @@ def corner(xs,
                 ax = axes[i, i]
         # Plot the histograms.
 
-        if smooth1d is None:
+        if NO_1D_SMOOTH:
             bins_1d = int(max(1, np.round(hist_bin_factor[i] * bins[i])))
             if plot_add_1d is not None:
                 maxn_add = plot_add_1d(x,
@@ -322,16 +329,23 @@ def corner(xs,
                               range=np.sort(range[i]),
                               density=True,
                               **hist_kwargs)
-
         else:
-            if gaussian_filter is None:
-                raise ImportError("Please install scipy for smoothing")
             n, b = np.histogram(x[x_good],
                                 bins=bins[i],
                                 weights=weights,
                                 density=True,
                                 range=np.sort(range[i]))
-            n = gaussian_filter(n, smooth1d)
+            if kde_smooth1d:
+                if weights is None:
+                    kernel = gaussian_kde(x[x_good])
+                else:
+                    kernel = gaussian_kde(x[x_good], weights=weights[x_good])
+                n = kernel((b[:-1] + b[1:]) / 2)
+
+            else:
+                if gaussian_filter is None:
+                    raise ImportError("Please install scipy for smoothing")
+                n = gaussian_filter(n, smooth1d)
             x0 = np.array(list(zip(b[:-1], b[1:]))).flatten()
             y0 = np.array(list(zip(n, n))).flatten()
             if plot_add_1d is not None:
@@ -388,7 +402,7 @@ def corner(xs,
         ax.set_xlim(range[i])
         try:
             maxn = max(np.max(n), maxn_add)
-        except:
+        except Exception:
             maxn = np.max(n)
         if scale_hist:
             ax.set_ylim(-0.1 * maxn, 1.1 * maxn)
@@ -584,7 +598,7 @@ def hist2d(x,
            kde_smooth=False,
            auto_p=None,
            weights=None,
-           levels=None,
+           levels=5,
            smooth=None,
            ax=None,
            color=None,
@@ -703,9 +717,9 @@ def hist2d(x,
     if color is None:
         color = "k"
 
-    # Choose the default "sigma" contour levels.
-    if levels is None:
-        levels = 1.0 - np.exp(-0.5 * np.arange(0.5, 2.1, 0.5)**2)
+    # "sigma" contour levels
+    if isinstance(levels, int):
+        levels = 1.0 - np.exp(-0.5 * np.linspace(0.5, 2.5, levels)**2)
 
     # This is the color map for the density plot, over-plotted to indicate the
     # density of the points near the center.
@@ -767,7 +781,7 @@ def hist2d(x,
         for i, v0 in enumerate(levels):
             try:
                 V[i] = Hflat[sm <= v0][-1]
-            except:
+            except Exception:
                 V[i] = Hflat[0]
         V.sort()
         m = np.diff(V) == 0
