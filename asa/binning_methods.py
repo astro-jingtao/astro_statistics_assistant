@@ -171,6 +171,6 @@ def get_stat_method(stat_name):
         'std_median': partial(w.std_median, bandwidth='silverman')
     }
     if stat_name.startswith('q:'):
-        return partial(w.q, q=float(stat_name[2:]))
+        return partial(w.quantile, q=float(stat_name[2:]))
     else:
         return mapper[stat_name]

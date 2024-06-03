@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.stats import binned_statistic, binned_statistic_2d
 
-from asa.weighted_statistic import median, mean, std, std_mean, std_median, q
+from asa.weighted_statistic import median, mean, std, std_mean, std_median, quantile
 from asa.binning_methods import get_stat_method, bin_1d, binned_statistic_robust, binned_statistic_2d_robust
 from asa.utils import flag_bad
 
@@ -36,9 +36,9 @@ class TestGetStatMethod:
     def test_q(self):
         x = np.random.normal(size=100)
         w = np.random.uniform(size=100)
-        assert get_stat_method('q:0.1')(x, w) == q(x, w, q=0.1)
-        assert get_stat_method('q:0.5')(x, w) == q(x, w, q=0.5)
-        assert get_stat_method('q:0.9')(x, w) == q(x, w, q=0.9)
+        assert get_stat_method('q:0.1')(x, w) == quantile(x, w, q=0.1)
+        assert get_stat_method('q:0.5')(x, w) == quantile(x, w, q=0.5)
+        assert get_stat_method('q:0.9')(x, w) == quantile(x, w, q=0.9)
 
 
 class TestBinMethod:

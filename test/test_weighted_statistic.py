@@ -28,8 +28,8 @@ class TestWeightedStatistic:
         assert std_median(x, w).shape == ()
         assert std_median(x).shape == ()
 
-        assert q(x, w).shape == ()
-        assert q(x).shape == ()
+        assert quantile(x, w).shape == ()
+        assert quantile(x).shape == ()
 
     def test_res(self):
         x = np.random.normal(size=100)

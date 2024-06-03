@@ -5,16 +5,11 @@ from .Bcorner import quantile as _quantile
 
 # TODO: in batch by axis
 
-def quantile(x, q, weights=None, N_min=2):
-    '''
-    The defination of weighted quantile is different from DescrStatsW
-    We use the interpolation of cdf, but they use the ecdf
-    '''
-    return np.array(_quantile(x, q, weights, N_min)[0])
-
+def quantile(x, w=None, q=0.5, **kwargs):
+    return np.array(_quantile(x, q, w, **kwargs)[0])
 
 def median(x, w=None):
-    return np.median(x) if w is None else quantile(x, 0.5, weights=w)
+    return np.median(x) if w is None else quantile(x, w=w, q=0.5)
 
 
 def mean(x, w=None):
@@ -39,8 +34,7 @@ def std(x, w=None, ddof=0):  # sourcery skip: remove-unnecessary-else
         return np.std(x, ddof=ddof)
     else:
         return np.sqrt(
-            np.average(
-                (x - mean(x, w))**2, weights=w) * N / (N - ddof))
+            np.average((x - mean(x, w))**2, weights=w) * N / (N - ddof))
 
 
 def std_mean(x, w=None, ddof=0):
@@ -61,10 +55,6 @@ def std_median(x, w=None, **kde_kwargs):
     fm = np.exp(kde.score_samples(np.array([[m]])))
     N = get_effect_sample_size(w) if w is not None else x.size
     return 1 / (2 * fm * np.sqrt(N))[0]
-
-
-def q(x, w=None, q=0.5):
-    return quantile(x, q, weights=w)
 
 
 def get_effect_sample_size(w):

@@ -15,7 +15,7 @@ from .utils import auto_set_range, flag_bad, is_empty
 # TODO: extract common code
 # - flag and remove bad
 
-
+# TODO: skind: quantile or sigma
 def plot_trend(x,
                y,
                bins=20,
