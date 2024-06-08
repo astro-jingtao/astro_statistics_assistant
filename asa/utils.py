@@ -1,4 +1,6 @@
+import sys
 from typing import List
+
 import numpy as np
 
 _range = range
@@ -137,5 +139,24 @@ def all_asarray(xs):
 def is_empty(x):
     return len(x) == 0
 
+
 def get_rank(x):
     return np.argsort(np.argsort(x))
+
+
+def to_little(x):
+    """
+    It takes a numpy array and returns a new numpy array with little-endian format.
+    It checks if the array is already in little-endian format and returns it directly if so.
+
+    :param x: A numpy array.
+    :return: A numpy array in little-endian byte order.
+    """
+    x = np.array(x)
+    if (x.dtype.byteorder == '<') or (x.dtype.byteorder == '='
+                                      and sys.byteorder == 'little'):
+        # If the array is already little-endian, return it as is.
+        return x
+    else:
+        # Otherwise, convert to little-endian.
+        return x.byteswap().newbyteorder('little')
