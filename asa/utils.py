@@ -144,7 +144,7 @@ def get_rank(x):
     return np.argsort(np.argsort(x))
 
 
-def to_little(x):
+def to_little_endian(x):
     """
     It takes a numpy array and returns a new numpy array with little-endian format.
     It checks if the array is already in little-endian format and returns it directly if so.

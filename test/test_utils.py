@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from asa.utils import (balance_class, is_bool, is_float, is_int, list_reshape,
-                       remove_bad, to_little)
+                       remove_bad, to_little_endian)
 
 
 class TestUtils:
@@ -144,27 +144,27 @@ class TestToLittle:
     def test_big_endian_input(self):  # sourcery skip: class-extract-method
         # Test input with big-endian byte order
         arr = np.array([1, 2, 3], dtype='>f')
-        result = to_little(arr)
+        result = to_little_endian(arr)
         # Verify that the byte order is converted to little-endian
         assert result.dtype.byteorder == '<'
 
     def test_little_endian_input(self):
         # Test input that is already in little-endian format
         arr = np.array([1, 2, 3], dtype='<f')
-        result = to_little(arr)
+        result = to_little_endian(arr)
         # Check if the byte order remains unchanged
         assert result.dtype.byteorder == self.expected_byteorder
 
     def test_native_endian_input(self):
         # Test input using the system's default byte order when the system is little-endian
         arr = np.array([1, 2, 3], dtype='=f')
-        result = to_little(arr)
+        result = to_little_endian(arr)
         # Check if the byte order is set correctly based on system's endianess
         assert result.dtype.byteorder == self.expected_byteorder
 
     def test_single_byte_dtype(self):
         # Test with a single-byte data type where byte order is irrelevant
         arr = np.array([1, 2, 3], dtype='uint8')
-        result = to_little(arr)
+        result = to_little_endian(arr)
         # Ensure that the byte order remains unchanged ('|' indicates not applicable)
         assert result.dtype.byteorder == '|'
