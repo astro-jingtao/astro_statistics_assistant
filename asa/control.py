@@ -1,8 +1,6 @@
 import numpy as np
 from scipy.stats import binned_statistic
 
-from .utils import is_int
-
 def control_1d(x_A,
                x_B,
                mode='match_P',
@@ -124,7 +122,7 @@ def match_N_1d(x_parent, N_target, edges):
     x_parent = np.asarray(x_parent)
     N_target = np.asarray(N_target)
 
-    if not is_int(N_target):
+    if N_target.dtype.kind != 'i':
         raise ValueError('N_target should contain only integers')
 
     edges = np.asarray(edges)
