@@ -6,6 +6,7 @@ def control_1d(x_A,
                mode='match_P',
                dist_target=None,
                edges=None,
+               auto_method='intersection',
                bins=10,
                _range=None,
                P_atol=0,
@@ -16,51 +17,75 @@ def control_1d(x_A,
     Parameters
     ----------
     x_A, x_B : array_like
-        1D arrays.
+        1D arrays whose distributions are to be matched.
     mode : str, optional
-        'match_P' or 'match_N'. Default is 'match_P'.
+        The matching mode. Can be 'match_P' or 'match_N'. Default is 'match_P'.
     dist_target : array_like, optional
-        1D array, target distribution. Default is None.
+        1D array representing the target distribution. If None, the target distribution will be computed based on `auto_method`. Default is None.
     edges : array_like, optional
-        1D array, edges of bins. Default is None.
+        1D array representing the edges of bins. If None, the edges will be computed based on `auto_method`. Default is None.
+    auto_method : str, optional
+        Method to compute `dist_target` and `edges` if they are None. Can be 'intersection', 'x_A', or 'x_B'. Default is 'intersection'.
     bins : int, optional
-        Number of bins, only used when both dist_target and edges are None. Default is 10.
+        Number of bins, only used when both `dist_target` and `edges` are None. Default is 10.
     _range : list of 2 elements, optional
-        Only used when both dist_target and edges are None. Default is None. 
-        If _range is None, the minimum and maximum of the union set of x_A and x_B will be used.
+        Range for computing `dist_target` and `edges`, only used when both `dist_target` and `edges` are None. If None, the range will be computed based on the minimum and maximum of the union set of `x_A` and `x_B`. Default is None.
     P_atol : float, optional
-        Absolute tolerance for match_P, default is 0, only used when mode is 'match_P'.
+        Absolute tolerance for 'match_P' mode, default is 0, only used when mode is 'match_P'.
     P_rtol : float, optional
-        Relative tolerance for match_P, default is 0, only used when mode is 'match_P'.
+        Relative tolerance for 'match_P' mode, default is 0, only used when mode is 'match_P'.
 
     Returns
     -------
     A_index, B_index : array_like
-        Indices of x_A and x_B after matching.
+        Indices of `x_A` and `x_B` after matching.
     dist_target : array_like
         Target distribution.
     edges : array_like
         Edges of bins.
-    
 
     Raises
     ------
     ValueError
-        If dist_target and edges are not both None or not None, or if mode is not 'match_N' or 'match_P'.
+        If `dist_target` and `edges` are not both None or not None, or if `mode` is not 'match_N' or 'match_P'.
 
     Notes
     -----
-    If dist_target and edges are both None, the dist_target will be the minimum of the histogram of x_A and x_B.
+    If `dist_target` and `edges` are both None, the `dist_target` will be determined automatically.
+    When auto_method is 'intersection', the target distribution will be the intersection of the distributions of `x_A` and `x_B`.
+    When auto_method is 'x_A', the target distribution will be the distribution of `x_A`.
+    When auto_method is 'x_B', the target distribution will be the distribution of `x_B`.
+
+    Examples
+    --------
+    >>> x_A = np.array([1, 2, 3, 4, 5])
+    >>> x_B = np.array([2, 3, 4, 5, 6])
+    >>> A_index, B_index, dist_target, edges = control_1d(x_A, x_B)
     """
     if (dist_target is None) and (edges is None):
-        if _range is None:
-            x_min = np.min(np.concatenate([x_A, x_B]))
-            x_max = np.max(np.concatenate([x_A, x_B]))
-            _range = [x_min, x_max]
+        if auto_method == 'intersection':
+            if _range is None:
+                x_min = np.min(np.concatenate([x_A, x_B]))
+                x_max = np.max(np.concatenate([x_A, x_B]))
+                _range = [x_min, x_max]
 
-        N_A, edges = np.histogram(x_A, density=False, bins=bins, range=_range)
-        N_B, _ = np.histogram(x_B, density=False, bins=edges)
-        dist_target = np.min([N_A, N_B], axis=0)
+            N_A, edges = np.histogram(x_A, density=False, bins=bins, range=_range)
+            N_B, _ = np.histogram(x_B, density=False, bins=edges)
+            dist_target = np.min([N_A, N_B], axis=0)
+        elif auto_method == 'x_A':
+            if _range is None:
+                x_min = np.min(x_A)
+                x_max = np.max(x_A)
+                _range = [x_min, x_max]
+            dist_target, edges = np.histogram(x_A, density=False, bins=bins, range=_range)
+        elif auto_method == 'x_B':
+            if _range is None:
+                x_min = np.min(x_B)
+                x_max = np.max(x_B)
+                _range = [x_min, x_max]
+            dist_target, edges = np.histogram(x_B, density=False, bins=bins, range=_range)
+        else:
+            raise ValueError('auto_method must be intersection, x_A or x_B')
 
     elif (dist_target is not None) and (edges is not None):
         pass
