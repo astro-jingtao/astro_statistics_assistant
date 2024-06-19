@@ -1,9 +1,8 @@
 import pytest
 import numpy as np
 import astropy.units as u
-from asa.dataset import Dataset
-from asa.labels import Labels
-from asa.dataset import parse_inequality, parse_and_or, parse_op
+from asa.dataset import Dataset, Labels
+from asa.dataset.inequality_utlis import parse_inequality, parse_and_or, parse_op
 import asa.uncertainty as unc
 
 

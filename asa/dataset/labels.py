@@ -1,4 +1,4 @@
-from typing import Union, List, Callable, Any, Dict
+from typing import Dict
 
 OP_MAP_LABEL: Dict[str, str] = {'log10': r'$\log$', 'square': ''}
 
