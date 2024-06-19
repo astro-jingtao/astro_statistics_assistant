@@ -1,13 +1,14 @@
 import pytest
 import numpy as np
-import pandas as pd
 import astropy.units as u
-from asa.dataset import Dataset, Labels
+from asa.dataset import Dataset
+from asa.labels import Labels
 from asa.dataset import parse_inequality, parse_and_or, parse_op
 import asa.uncertainty as unc
 
 
 class TestDataset:
+
     def gen_dataset(self):
         x = np.arange(10)
         y = np.arange(10) * 2
@@ -434,6 +435,7 @@ class TestDataset:
 
 
 class TestLabels:
+
     def test_get_label_by_name(self):
         labels = Labels({
             'x': 'x label',

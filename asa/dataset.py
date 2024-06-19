@@ -1,69 +1,31 @@
 import itertools
 import re
 import warnings
-from typing import Union, List, Callable, Any, Dict
+from typing import Any, Callable, Dict, List, Union
+
+import astropy.units as u
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import astropy.units as u
-from .plot_methods import plot_contour, plot_trend, plot_corner, plot_scatter, plot_heatmap, plot_sample_to_point
-from .correlation_methods import get_RF_importance
-from .projection_methods import get_LDA_projection
-from .feature_selection_methods import search_combination_OLS, search_combination_RF_cls, search_combination_RF_reg
-from .utils import string_to_list, is_string_or_list_of_string, list_reshape, flag_bad, is_int, is_bool, is_float, balance_class, remove_bad
-from .binning_methods import binned_statistic_robust, binned_statistic_2d_robust
+
 from . import uncertainty as unc
+from .binning_methods import (binned_statistic_2d_robust,
+                              binned_statistic_robust)
+from .correlation_methods import get_RF_importance
+from .feature_selection_methods import (search_combination_OLS,
+                                        search_combination_RF_cls,
+                                        search_combination_RF_reg)
+from .labels import OP_MAP_LABEL, _get_label_by_name
+from .plot_methods import (plot_contour, plot_corner, plot_heatmap,
+                           plot_sample_to_point, plot_scatter, plot_trend)
+from .projection_methods import get_LDA_projection
+from .utils import (balance_class, flag_bad, is_bool, is_float, is_int,
+                    is_string_or_list_of_string, list_reshape, remove_bad,
+                    string_to_list)
 
 _range = range
 
 # TODO: DF to AASTeX tabel. Maybe ref to: https://github.com/liuguanfu1120/Excel-to-AASTeX/blob/main/xlsx-to-AAS-table.ipynb
-
-OP_MAP_LABEL: Dict[str, str] = {'log10': r'$\log$', 'square': ''}
-
-
-class Labels:
-
-    OP_MAP_LABEL = OP_MAP_LABEL
-
-    def __init__(self, labels: Dict[str, str], units: Dict[str, str] = None):
-        self.labels: Dict[str, str] = labels
-        self.unit_labels: Dict[str, str]
-        if units is not None:
-            self.unit_labels = units
-        else:
-            self.unit_labels = {}
-
-    def __getitem__(self, key):
-        return self.labels[key]
-
-    def __setitem__(self, key, value):
-        self.labels[key] = value
-
-    def get(self, name, with_unit=True, op_bracket='{label}') -> str:
-
-        if with_unit:
-            if '@' in name:
-                _, _name = name.split('@')
-            else:
-                _name = name
-            unit_label = self.unit_labels.get(_name, '')
-        else:
-            unit_label = ''
-
-        return _get_label_by_name(name,
-                                  self.labels,
-                                  unit_label,
-                                  op_bracket=op_bracket,
-                                  op_map_label=self.OP_MAP_LABEL)
-
-    def keys(self):
-        return self.labels.keys()
-
-    def values(self):
-        return self.labels.values()
-
-    def items(self):
-        return self.labels.items()
 
 
 class BasicDataset:
@@ -1633,28 +1595,3 @@ def guess_problem_type(y):
     else:
         raise ValueError(
             'Can not guess problem_type, please specify problem_type')
-
-
-def _get_label_by_name(name,
-                       labels,
-                       unit_label,
-                       space_before_unit=True,
-                       op_bracket='{label}',
-                       op_map_label=None) -> str:
-
-    if op_map_label is None:
-        op_map_label = OP_MAP_LABEL
-
-    if space_before_unit:
-        if unit_label != '':
-            unit_label = ' ' + unit_label
-
-    if name in labels:
-        return labels[name] + unit_label
-    if '@' in name:
-        op, name = name.split('@')
-        label = OP_MAP_LABEL[op] + op_bracket.format(
-            label=labels.get(name, name)) + unit_label
-    else:
-        label = labels.get(name, name) + unit_label
-    return label.strip()
