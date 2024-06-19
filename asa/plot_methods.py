@@ -148,6 +148,7 @@ def plot_trend(x,
                                 range=xrange,
                                 min_data=N_min)
 
+
     # TODO: support the error of median or mean
     if ifscatter:
         if fkind == "errorbar":
@@ -160,7 +161,6 @@ def plot_trend(x,
                     errorbar_kwargs["color"] = plot_kwargs.get("color")
                 if "label" not in errorbar_kwargs:
                     errorbar_kwargs["label"] = plot_kwargs.get("label")
-
             # TODO: deal with ytype is mean and yerr is negative
             ax.errorbar(
                 statistic['x_median'],
@@ -762,6 +762,18 @@ def plot_line(x=None,
             return
 
     raise ValueError("Invalid input")
+
+
+def imshow(X, ax=None, mask=None, **kwargs):
+
+    if ax is None:
+        ax = plt.gca()
+
+    if mask is not None:
+        X = X.astype(float).copy()
+        X[~mask] = np.nan
+
+    ax.imshow(X, **kwargs)
 
 # TODO: consider P(p|k, N)
 def plot_hist(x,
