@@ -15,6 +15,57 @@ def get_linear_model(k, b):
     return func
 
 
+def get_linear_model_interval_bs(func_lst, alpha):
+    def func_interval(x):
+        y_lst = [func(x) for func in func_lst]
+        y_l, y_u = np.percentile(y_lst,
+                                 [alpha / 2 * 100, (1 - alpha / 2) * 100],
+                                 axis=0)
+        return y_l, y_u
+
+    return func_interval
+
+
+def get_OLS_bs(x, y, bs_N=0.8, bs_times=1000, return_res=False, alpha=0.32):
+    if bs_N < 1:
+        bs_N = x.shape[0] * bs_N
+
+    results_lst = []
+
+    for _ in range(bs_times):
+        idx = np.random.choice(x.shape[0], int(bs_N), replace=False)
+        res = get_OLS(x[idx], y[idx], return_res=return_res)
+        results_lst.append(res)
+
+    if return_res:
+        return results_lst
+
+    k_lst = [res['k'][0] for res in results_lst]
+    b_lst = [res['b'][0] for res in results_lst]
+    std_lst = [res['std'] for res in results_lst]
+    func_lst = [res['func'] for res in results_lst]
+
+    k = np.median(k_lst)
+    b = np.median(b_lst)
+    std = np.median(std_lst)
+    k_l, k_u = np.percentile(k_lst, [alpha / 2 * 100, (1 - alpha / 2) * 100])
+    b_l, b_u = np.percentile(b_lst, [alpha / 2 * 100, (1 - alpha / 2) * 100])
+    std_l, std_u = np.percentile(std_lst,
+                                 [alpha / 2 * 100, (1 - alpha / 2) * 100])
+
+    func = get_linear_model(k, b)
+
+    func_interval = get_linear_model_interval_bs(func_lst, alpha)
+
+    return {
+        'k': (k, k_l, k_u),
+        'b': (b, b_l, b_u),
+        'std': (std, std_l, std_u),
+        'func': func,
+        'func_interval': func_interval
+    }
+
+
 def get_OLS(x, y, return_res=False):
     # y = kx + b
     x, y = preprocess([x, y])

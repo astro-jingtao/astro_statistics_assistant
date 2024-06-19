@@ -52,7 +52,7 @@ def binned_statistic_2d_robust(x,
         bins=bins,
         range=range,
         expand_binnumbers=True)
-    
+
     binnumber_x = np.full(len(x), -1)
     binnumber_y = np.full(len(y), -1)
     binnumber_x[~is_bad] = _binnumber[0]
@@ -60,7 +60,6 @@ def binned_statistic_2d_robust(x,
     binnumber = np.stack([binnumber_x, binnumber_y], axis=0)
 
     return statistic_res, x_edge, y_edge, binnumber
-
 
 
 def weighted_binned_statistic(x, y, w, bins=10, statistic=None, range=None):

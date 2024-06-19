@@ -1,5 +1,5 @@
 import sys
-from typing import List
+from typing import List, Dict
 
 import numpy as np
 
@@ -140,6 +140,7 @@ def is_empty(x):
     return len(x) == 0
 
 
+
 def get_rank(x):
     return np.argsort(np.argsort(x))
 
@@ -160,3 +161,52 @@ def to_little_endian(x):
     else:
         # Otherwise, convert to little-endian.
         return x.byteswap().newbyteorder('little')
+
+
+def to_little_endian(x):
+    """
+    It takes a numpy array and returns a new numpy array with little-endian format.
+    It checks if the array is already in little-endian format and returns it directly if so.
+
+    :param x: A numpy array.
+    :return: A numpy array in little-endian byte order.
+    """
+    x = np.array(x)
+    if (x.dtype.byteorder == '<') or (x.dtype.byteorder == '='
+                                      and sys.byteorder == 'little'):
+        # If the array is already little-endian, return it as is.
+        return x
+    else:
+        # Otherwise, convert to little-endian.
+        return x.byteswap().newbyteorder('little')
+
+
+def xy2ij_imshow(x, y, img_shape, extent, origin):
+    """
+    Convert x, y coordinates to the index of the image.
+
+    Parameters:
+    - x: array-like - The x-coordinate of the points.
+    - y: array-like - The y-coordinate of the points.
+    - img_shape: array-like - The shape of the image.
+    - extent: array-like - The extent of the image.
+    - origin: str - The origin of the image.
+
+    Returns:
+    - i: array-like - The first index of the image.
+    - j: array-like - The second index of the image.
+
+    """
+    x = np.asarray(x)
+    y = np.asarray(y)
+
+    dx = (extent[1] - extent[0]) / img_shape[1]
+    dy = (extent[3] - extent[2]) / img_shape[0]
+
+    i = np.floor((y - extent[2]) / dy)
+    j = np.floor((x - extent[0]) / dx)
+
+    if origin == 'upper':
+        i = img_shape[0] - i
+
+    return int(i), int(j)
