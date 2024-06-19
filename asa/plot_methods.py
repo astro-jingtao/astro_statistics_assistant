@@ -761,3 +761,15 @@ def plot_line(x=None,
             return
 
     raise ValueError("Invalid input")
+
+
+def imshow(X, ax=None, mask=None, **kwargs):
+
+    if ax is None:
+        ax = plt.gca()
+
+    if mask is not None:
+        X = X.astype(float).copy()
+        X[~mask] = np.nan
+
+    ax.imshow(X, **kwargs)
