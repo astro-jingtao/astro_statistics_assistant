@@ -16,6 +16,7 @@ from .utils import auto_set_range, flag_bad, is_empty
 # - flag and remove bad
 
 # TODO: skind: quantile or sigma
+# TODO: lowlim, uplim: float as int
 def plot_trend(x,
                y,
                bins=20,

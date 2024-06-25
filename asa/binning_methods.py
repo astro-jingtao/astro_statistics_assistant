@@ -77,7 +77,7 @@ def weighted_binned_statistic(x, y, w, bins=10, statistic=None, range=None):
 
 
 def bin_2d(x, y, z, bins=10, range=None, min_data=0):
-    # TODO: support with weights
+    # TODO: support with weights, support more statistic
     Z, x_edges, y_edges, _ = binned_statistic_2d(x,
                                                  y,
                                                  z,
@@ -106,25 +106,33 @@ def bin_1d(x,
            bins=10,
            range=None,
            min_data=0):
-    # TODO: count
+    # TODO: count, std_std
     '''
     input:
         x_statistic, List[str]:
             'mean', 'median', 'std', 'std_mean', 'std_median', 'q:x' (x is a number between 0 and 1)
         y_statistic, List[str]:
             'mean', 'median', 'std', 'std_mean', 'std_median', 'q:x' (x is a number between 0 and 1)
+    
+    notes:
+        ...
     '''
 
     if x_statistic is None:
         x_statistic = []
+    elif isinstance(x_statistic, str):
+        x_statistic = [x_statistic]
+
     if y_statistic is None:
         y_statistic = ['mean']
+    elif isinstance(y_statistic, str):
+        y_statistic = [y_statistic]
 
-    _, edges, bin_index = binned_statistic(x,
-                                           y,
-                                           statistic='count',
-                                           bins=bins,
-                                           range=range)
+    _, edges, bin_index = binned_statistic_robust(x,
+                                                  y,
+                                                  statistic='count',
+                                                  bins=bins,
+                                                  range=range)
 
     # sourcery skip: dict-comprehension
     statistic = {}
