@@ -16,7 +16,6 @@ from .utils import auto_set_range, flag_bad, is_empty
 # - flag and remove bad
 
 # TODO: skind: quantile or sigma
-# TODO: lowlim, uplim: float as int
 def plot_trend(x,
                y,
                bins=20,
@@ -29,6 +28,7 @@ def plot_trend(x,
                lowlim=25,
                uplim=75,
                fkind=None,
+               plot_line=True,
                prop_kwargs=None,
                errorbar_kwargs=None,
                fbetween_kwargs=None,
@@ -74,11 +74,13 @@ def plot_trend(x,
 
     ifscatter: whether to plot scatter
 
-    uplim (%): The upper limit of the scatter, in [0, 100]
+    uplim (%): The upper limit of the scatter, in [0, 100]. 
 
     lowlim (%): The lower limit of the scatter, in [0, 100]
 
     fkind: which ways to show the scatter, "errorbar" and "fbetween" are available
+
+    plot_line: whether to plot the line, only valid when fkind is "fbetween"
         
     plot_kwargs: function in ``matplotlib``
 
@@ -170,8 +172,9 @@ def plot_trend(x,
                       statistic[f'y_{up_name}'] - statistic[f'y_{ytype}']),
                 **errorbar_kwargs)
         elif fkind == "fbetween":
-            ax.plot(statistic['x_median'], statistic[f'y_{ytype}'],
-                    **plot_kwargs)
+            if plot_line:
+                ax.plot(statistic['x_median'], statistic[f'y_{ytype}'],
+                        **plot_kwargs)
             if fbetween_kwargs is None:
                 fbetween_kwargs = {}
                 fbetween_kwargs["color"] = plot_kwargs.get("color", "r")
