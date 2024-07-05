@@ -2,6 +2,7 @@ from functools import partial
 
 import numpy as np
 from scipy.stats import binned_statistic, binned_statistic_2d
+from astropy.stats import poisson_conf_interval
 
 from . import weighted_statistic as w
 from .utils import flag_bad
@@ -181,3 +182,98 @@ def get_stat_method(stat_name):
         return partial(w.quantile, q=float(stat_name[2:]))
     else:
         return mapper[stat_name]
+
+
+def get_epdf(x,
+             bins=10,
+             range=None,
+             weights=None,
+             density=False,
+             interval="frequentist-confidence",
+             sigma=1,
+             background=0,
+             confidence_level=None):
+    """
+    Estimate the empirical probability density function (EPDF) of a dataset.
+
+    Parameters
+    ----------
+    x : array_like
+        Input array of data points.
+    bins : int or sequence of scalars or str, optional
+        If an int, it defines the number of equal-width bins in the range.
+        If a sequence, it defines the bin edges, including the rightmost edge.
+        Default is 10.
+    range : (float, float), optional
+        The lower and upper range of the bins. If not provided, range is simply
+        (x.min(), x.max()). Values outside the range are ignored.
+    weights : array_like, optional
+        An array of weights, of the same shape as `x`. Each value in `x` only contributes its associated weight towards the bin count
+        (instead of 1).
+    density : bool, optional
+        If False, the result contains the number of samples in each bin. If True, the result is the value of the probability
+        density function at the bin, normalized such that the integral over the range is 1.
+        Default is False.
+    interval : str, optional
+        The type of interval to calculate. 
+        Used by astropy.stats.poisson_conf_interval
+        Default is 'frequentist-confidence'.
+    sigma : float, optional
+        Used by astropy.stats.poisson_conf_interval to calculate the interval.
+        Default is 1.
+    background : float, optional
+        Used by astropy.stats.poisson_conf_interval to calculate the interval.
+        Default is 0.
+    confidence_level : float, optional
+        Used by astropy.stats.poisson_conf_interval to calculate the interval.
+        Default is None.
+
+    Returns
+    -------
+    centers : ndarray
+        The bin centers.
+    N : ndarray
+        The values of the histogram.
+    lower : ndarray
+        The lower bounds of the interval.
+    upper : ndarray
+        The upper bounds of the interval.
+    edges : ndarray
+        The bin edges.
+    d_bin : float
+        The width of each bin.
+
+    Notes
+    -----
+    The function uses NumPy's `np.histogram` to compute the histogram and `astropy.stats.poisson_conf_interval` to calculate the confidence
+    interval for the Poisson distribution. 
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> x = np.random.normal(0, 1, 1000)
+    >>> centers, N, lower, upper, edges, d_bin = get_epdf(x, bins=20, density=True)
+    """
+
+    N, edges = np.histogram(x,
+                            bins=bins,
+                            range=range,
+                            weights=weights,
+                            density=False)
+    lower, upper = poisson_conf_interval(N,
+                                         interval=interval,
+                                         sigma=sigma,
+                                         background=background,
+                                         confidence_level=confidence_level)
+    centers = (edges[:-1] + edges[1:]) / 2
+
+    d_bin = edges[1:] - edges[:-1]
+
+    if density:
+        scaler = np.sum(N) * d_bin
+        N = N / scaler
+        lower = lower / scaler
+        upper = upper / scaler
+    
+    return centers, N, lower, upper, edges, d_bin
+
