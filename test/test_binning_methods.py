@@ -2,11 +2,12 @@ import numpy as np
 from scipy.stats import binned_statistic, binned_statistic_2d
 
 from asa.weighted_statistic import median, mean, std, std_mean, std_median, quantile
-from asa.binning_methods import get_stat_method, bin_1d, binned_statistic_robust, binned_statistic_2d_robust
+from asa.binning_methods import get_stat_method, bin_1d, binned_statistic_robust, binned_statistic_2d_robust, get_epdf
 from asa.utils import flag_bad
 
 
 class TestGetStatMethod:
+
     def test_mean(self):
         x = np.random.normal(size=100)
         w = np.random.uniform(size=100)
@@ -42,6 +43,7 @@ class TestGetStatMethod:
 
 
 class TestBinMethod:
+
     def test_bin1d(self):
         x = np.random.normal(size=100)
         y = 3 * x + np.random.normal(size=100)
@@ -88,6 +90,28 @@ class TestBinMethod:
                               np.isnan(statistic['x_std_median']))
         assert np.array_equal(np.isnan(statistic['y_median']),
                               np.isnan(statistic['y_std_median']))
+
+    def test_bin1d_nan_inf(self):
+        x = np.random.normal(size=100)
+        x[20] = np.nan
+        x[40] = np.inf
+        y = 3 * x + np.random.normal(size=100)
+        y[10] = np.nan
+        y[30] = np.inf
+        w = np.random.uniform(size=100)
+
+        bin_1d(x,
+               y,
+               weights=w,
+               x_statistic=[
+                   'mean', 'median', 'std', 'std_mean', 'std_median', 'q:0.3',
+                   'q:0.7'
+               ],
+               y_statistic=[
+                   'mean', 'median', 'std', 'std_mean', 'std_median', 'q:0.3',
+                   'q:0.7'
+               ],
+               range=(-3, 3))
 
     def test_binned_statistic_robust(self):
 
@@ -155,9 +179,27 @@ class TestBinMethod:
         statistic_rb, x_edge_rb, y_edge_rb, binnumber_rb = binned_statistic_2d_robust(
             _x, _y, _z, statistic='mean', bins=10, range=[(-3, 3), (-3, 3)])
 
-        assert np.array_equal(binnumber_rb[0][~is_bad], binnumber_res[0][~is_bad])
-        assert np.array_equal(binnumber_rb[1][~is_bad], binnumber_res[1][~is_bad])
+        assert np.array_equal(binnumber_rb[0][~is_bad],
+                              binnumber_res[0][~is_bad])
+        assert np.array_equal(binnumber_rb[1][~is_bad],
+                              binnumber_res[1][~is_bad])
         assert np.allclose(binnumber_rb[0][is_bad], -1)
         assert np.allclose(binnumber_rb[1][is_bad], -1)
         assert np.array_equal(x_edge_res, x_edge_rb)
         assert np.array_equal(y_edge_res, y_edge_rb)
+
+
+class TestGetEPDF:
+
+    def test_basic(self):
+        x = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        centers, N, lower, upper, edges, d_bin = get_epdf(x,
+                                                          range=(0, 10),
+                                                          interval='root-n')
+        assert np.array_equal(
+            centers, [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5])
+        assert np.array_equal(N, [1] * 10)
+        assert np.array_equal(lower, [0] * 10)
+        assert np.array_equal(upper, [2] * 10)
+        assert np.array_equal(edges, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+        assert np.array_equal(d_bin, [1] * 10)

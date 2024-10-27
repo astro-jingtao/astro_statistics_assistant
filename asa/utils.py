@@ -163,24 +163,6 @@ def to_little_endian(x):
         return x.byteswap().newbyteorder('little')
 
 
-def to_little_endian(x):
-    """
-    It takes a numpy array and returns a new numpy array with little-endian format.
-    It checks if the array is already in little-endian format and returns it directly if so.
-
-    :param x: A numpy array.
-    :return: A numpy array in little-endian byte order.
-    """
-    x = np.array(x)
-    if (x.dtype.byteorder == '<') or (x.dtype.byteorder == '='
-                                      and sys.byteorder == 'little'):
-        # If the array is already little-endian, return it as is.
-        return x
-    else:
-        # Otherwise, convert to little-endian.
-        return x.byteswap().newbyteorder('little')
-
-
 def xy2ij_imshow(x, y, img_shape, extent, origin):
     """
     Convert x, y coordinates to the index of the image.

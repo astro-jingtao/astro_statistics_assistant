@@ -189,6 +189,19 @@ def get_string(k, b, order='xy'):
         return f'x = {k:.2f}y {sign} {np.abs(b):.2f}'
 
 
+def get_ans_posterior(X, y, y_err=None):
+
+    if y_err is not None:
+        X = X / y_err[:, None]
+        y = y / y_err
+    
+    beta = np.linalg.pinv(X.T @ X) @ X.T @ y
+    Sigma = np.linalg.pinv(X.T @ X)
+
+    return beta, Sigma
+
+    
+
 def maximum_likelihood(x, y, x_err, y_err, k0=1, b0=0, sig_int0=0):
     def log_likelihood(theta, x, y, x_err, y_err):
         '''

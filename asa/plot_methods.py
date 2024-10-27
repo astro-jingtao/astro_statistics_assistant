@@ -8,12 +8,13 @@ from scipy.stats import binned_statistic
 from statsmodels.stats.weightstats import DescrStatsW
 
 from .Bcorner import corner, hist2d, quantile
-from .binning_methods import bin_1d, bin_2d
+from .binning_methods import bin_1d, bin_2d, get_epdf
 from .loess2d import loess_2d_map
 from .utils import auto_set_range, flag_bad, is_empty
 
 # TODO: extract common code
 # - flag and remove bad
+
 
 # TODO: skind: quantile or sigma
 def plot_trend(x,
@@ -28,6 +29,7 @@ def plot_trend(x,
                lowlim=25,
                uplim=75,
                fkind=None,
+               plot_line=True,
                prop_kwargs=None,
                errorbar_kwargs=None,
                fbetween_kwargs=None,
@@ -76,6 +78,8 @@ def plot_trend(x,
     lowlim (%): The lower limit of the scatter, in [0, 100]
 
     fkind: which ways to show the scatter, "errorbar" and "fbetween" are available
+
+    plot_line: whether to plot the line, only valid when fkind is "fbetween"
         
     plot_kwargs: function in ``matplotlib``
 
@@ -146,7 +150,6 @@ def plot_trend(x,
                                 range=xrange,
                                 min_data=N_min)
 
-
     # TODO: support the error of median or mean
     if ifscatter:
         if fkind == "errorbar":
@@ -167,8 +170,9 @@ def plot_trend(x,
                       statistic[f'y_{up_name}'] - statistic[f'y_{ytype}']),
                 **errorbar_kwargs)
         elif fkind == "fbetween":
-            ax.plot(statistic['x_median'], statistic[f'y_{ytype}'],
-                    **plot_kwargs)
+            if plot_line:
+                ax.plot(statistic['x_median'], statistic[f'y_{ytype}'],
+                        **plot_kwargs)
             if fbetween_kwargs is None:
                 fbetween_kwargs = {}
                 fbetween_kwargs["color"] = plot_kwargs.get("color", "r")
@@ -773,6 +777,7 @@ def imshow(X, ax=None, mask=None, **kwargs):
 
     ax.imshow(X, **kwargs)
 
+
 # TODO: consider P(p|k, N)
 def plot_hist(x,
               bins=10,
@@ -792,31 +797,18 @@ def plot_hist(x,
     if ax is None:
         ax = plt.gca()
 
-    N, edges = np.histogram(x,
-                            bins=bins,
-                            range=range,
-                            weights=weights,
-                            density=False)
-    lower, upper = poisson_conf_interval(N,
-                                         interval=interval,
-                                         sigma=sigma,
-                                         background=background,
-                                         confidence_level=confidence_level)
-    centers = (edges[:-1] + edges[1:]) / 2
+    centers, N, lower, upper, edges, d_bin = get_epdf(
+        x,
+        bins=bins,
+        range=range,
+        weights=weights,
+        density=density,
+        interval=interval,
+        sigma=sigma,
+        background=background,
+        confidence_level=confidence_level)
 
-    d_bin = edges[1:] - edges[:-1]
-
-    if density:
-        scaler = np.sum(N) * d_bin
-        N = N / scaler
-        lower = lower / scaler
-        upper = upper / scaler
-
-    ax.bar(centers,
-           N,
-           width=d_bin,
-           yerr=[N - lower, upper - N],
-           **kwargs)
+    ax.bar(centers, N, width=d_bin, yerr=[N - lower, upper - N], **kwargs)
 
     if return_data:
         return {
@@ -826,3 +818,64 @@ def plot_hist(x,
             "lower": lower,
             "upper": upper
         }
+
+
+# TODO: support give ax
+# TODO: single err for all
+# TODO: different upper and lower err
+def plot_errorbar(x, y, c=None, cmap='viridis', with_colorbar=False, **kwargs):
+    """
+    Plot error bars with color coding based on a third variable 'c'.
+
+    Parameters:
+        x : array-like
+            The x-coordinates.
+        y : array-like
+            The y-coordinates.
+        c : array-like, optional
+            The values used to color the error bars. If None, the error bars will not be color-coded.
+        cmap : str or Colormap, optional
+            The colormap used to map the 'c' values to colors. Default is 'viridis'.
+        with_colorbar : bool, optional
+            Whether to display a colorbar next to the plot. Default is False.
+        **kwargs : additional arguments
+            Additional arguments to pass to plt.errorbar.
+
+    Returns:
+        matplotlib.cm.ScalarMappable
+            A ScalarMappable object that can be used to create a colorbar.
+    """
+
+    if c is None:
+        return plt.errorbar(x, y, **kwargs)
+
+    # Normalize 'c' values to [0, 1] range for colormap
+    c_norm = (c - c.min()) / (c.max() - c.min())
+
+    # Create a colormap object
+    cmap = plt.colormaps.get_cmap(cmap)
+
+    # Map 'c' values to colors using the colormap
+    colors = cmap(c_norm)
+
+    # Plotting with error bars and color coding
+    yerr = kwargs.pop('yerr') if 'yerr' in kwargs else [None] * len(x)
+    xerr = kwargs.pop('xerr') if 'xerr' in kwargs else [None] * len(x)
+
+    for i in range(len(x)):
+        plt.errorbar(x[i],
+                     y[i],
+                     xerr=xerr[i],
+                     yerr=yerr[i],
+                     color=colors[i],
+                     **kwargs)
+
+    # Create a ScalarMappable and an axes-level colorbar
+    sm = plt.cm.ScalarMappable(cmap=cmap,
+                               norm=plt.Normalize(vmin=c.min(), vmax=c.max()))
+    sm._A = []  # Fake up the array of the scalar mappable. Urgh...
+
+    if with_colorbar:
+        plt.colorbar(sm, ax=plt.gca())
+
+    return sm
