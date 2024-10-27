@@ -71,8 +71,6 @@ def plot_trend(x,
     ax : matplotlib.Axes
         A axes instance on which to add the line.
 
-    ifscatter: whether to plot scatter
-
     uplim (%): The upper limit of the scatter, in [0, 100]
 
     lowlim (%): The lower limit of the scatter, in [0, 100]
