@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.stats import binned_statistic
 
+
 def control_1d(x_A,
                x_B,
                mode='match_P',
@@ -9,7 +10,7 @@ def control_1d(x_A,
                auto_method='intersection',
                bins=10,
                _range=None,
-               P_atol=0,
+               P_atol=1e-3,
                P_rtol=0):
     """
     Control the distribution of x_A and x_B to be the same.
@@ -69,7 +70,10 @@ def control_1d(x_A,
                 x_max = np.max(np.concatenate([x_A, x_B]))
                 _range = [x_min, x_max]
 
-            N_A, edges = np.histogram(x_A, density=False, bins=bins, range=_range)
+            N_A, edges = np.histogram(x_A,
+                                      density=False,
+                                      bins=bins,
+                                      range=_range)
             N_B, _ = np.histogram(x_B, density=False, bins=edges)
             dist_target = np.min([N_A, N_B], axis=0)
         elif auto_method == 'x_A':
@@ -77,13 +81,19 @@ def control_1d(x_A,
                 x_min = np.min(x_A)
                 x_max = np.max(x_A)
                 _range = [x_min, x_max]
-            dist_target, edges = np.histogram(x_A, density=False, bins=bins, range=_range)
+            dist_target, edges = np.histogram(x_A,
+                                              density=False,
+                                              bins=bins,
+                                              range=_range)
         elif auto_method == 'x_B':
             if _range is None:
                 x_min = np.min(x_B)
                 x_max = np.max(x_B)
                 _range = [x_min, x_max]
-            dist_target, edges = np.histogram(x_B, density=False, bins=bins, range=_range)
+            dist_target, edges = np.histogram(x_B,
+                                              density=False,
+                                              bins=bins,
+                                              range=_range)
         else:
             raise ValueError('auto_method must be intersection, x_A or x_B')
 

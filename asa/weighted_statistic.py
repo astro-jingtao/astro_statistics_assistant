@@ -5,8 +5,10 @@ from .Bcorner import quantile as _quantile
 
 # TODO: in batch by axis
 
+
 def quantile(x, w=None, q=0.5, **kwargs):
     return np.array(_quantile(x, q, w, **kwargs)[0])
+
 
 def median(x, w=None):
     return np.median(x) if w is None else quantile(x, w=w, q=0.5)
@@ -55,6 +57,16 @@ def std_median(x, w=None, **kde_kwargs):
     fm = np.exp(kde.score_samples(np.array([[m]])))
     N = get_effect_sample_size(w) if w is not None else x.size
     return 1 / (2 * fm * np.sqrt(N))[0]
+
+
+def std_std(x, w=None, ddof=0):
+    '''
+    The ddof only affects the estimation of std
+    We use the effect sample size as the denominator
+    '''
+    N = get_effect_sample_size(w) if w is not None else x.size
+    factor = np.sqrt((N**2 - 1) / (N - ddof)**2 - 1)
+    return std(x, w=w, ddof=ddof) * factor / 2
 
 
 def get_effect_sample_size(w):

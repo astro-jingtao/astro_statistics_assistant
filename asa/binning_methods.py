@@ -111,9 +111,9 @@ def bin_1d(x,
     '''
     input:
         x_statistic, List[str]:
-            'mean', 'median', 'std', 'std_mean', 'std_median', 'q:x' (x is a number between 0 and 1)
+            'mean', 'median', 'std', 'std_mean', 'std_median', 'std_std', 'q:x' (x is a number between 0 and 1)
         y_statistic, List[str]:
-            'mean', 'median', 'std', 'std_mean', 'std_median', 'q:x' (x is a number between 0 and 1)
+            'mean', 'median', 'std', 'std_mean', 'std_median', 'std_std', 'q:x' (x is a number between 0 and 1)
     
     notes:
         ...
@@ -176,7 +176,8 @@ def get_stat_method(stat_name):
         'median': w.median,
         'std': partial(w.std, ddof=1),
         'std_mean': partial(w.std_mean, ddof=1),
-        'std_median': partial(w.std_median, bandwidth='silverman')
+        'std_median': partial(w.std_median, bandwidth='silverman'),
+        'std_std': partial(w.std_std, ddof=1),
     }
     if stat_name.startswith('q:'):
         return partial(w.quantile, q=float(stat_name[2:]))

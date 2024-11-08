@@ -121,6 +121,9 @@ def get_WLS(x, y, y_err, return_res=False):
 
 
 def get_ODR(x, y, x_err=None, y_err=None, return_res=False):
+
+    # https://docs.scipy.org/doc/scipy/reference/odr.html
+
     def f(B, x):
         return B[0] * x + B[1]
 
