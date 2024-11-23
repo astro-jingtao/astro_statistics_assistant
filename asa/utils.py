@@ -125,20 +125,24 @@ def remove_bad(xs):
         n_sample = xs[0].shape[0]
     bad = np.zeros(n_sample, dtype=bool)
     for x in xs:
+        if x is None:
+            continue
         if x.ndim == 1:
             bad |= flag_bad(x)
         else:
             bad |= flag_bad(x).any(axis=1)
-    return [x[~bad] for x in xs]
+    return [x[~bad] if x is not None else None for x in xs]
 
 
 def all_asarray(xs):
-    return [np.asarray(x) for x in xs]
+    return [np.asarray(x) if x is not None else None for x in xs]
 
 
 def is_empty(x):
     return len(x) == 0
 
+def any_empty(xs):
+    return any(is_empty(x) if x is not None else False for x in xs)
 
 def get_rank(x):
     return np.argsort(np.argsort(x))

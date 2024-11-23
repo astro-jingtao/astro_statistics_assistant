@@ -136,6 +136,15 @@ class TestUtils:
         X[10:14, 0] = np.nan
         assert np.array_equal(remove_bad([X])[0], X[~np.isnan(X[:, 0])])
 
+        x = np.random.normal(size=100)
+        y = np.random.normal(size=100)
+        y[80:84] = np.nan
+        z = None
+        _x, _y, _z = remove_bad([x, y, z])
+        assert np.array_equal(_x, x[~np.isnan(y)])
+        assert np.array_equal(_y, y[~np.isnan(y)])
+        assert _z is None
+
 
 class TestToLittle:
 

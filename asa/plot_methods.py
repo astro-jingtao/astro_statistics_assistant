@@ -1,16 +1,15 @@
 import warnings
-from functools import partial
 
 import matplotlib.pyplot as plt
+from matplotlib.scale import scale_factory
 import numpy as np
-from astropy.stats import poisson_conf_interval
-from scipy.stats import binned_statistic
+from scipy.stats import gaussian_kde
 from statsmodels.stats.weightstats import DescrStatsW
 
 from .Bcorner import corner, hist2d, quantile
 from .binning_methods import bin_1d, bin_2d, get_epdf
 from .loess2d import loess_2d_map
-from .utils import auto_set_range, flag_bad, is_empty
+from .utils import any_empty, auto_set_range, flag_bad, is_empty, remove_bad, all_asarray
 
 # TODO: extract common code
 # - flag and remove bad
@@ -192,72 +191,120 @@ def plot_trend(x,
 
 def plot_scatter(x,
                  y,
+                 xerr=None,
+                 yerr=None,
                  z=None,
+                 color=None,
                  ax=None,
                  range=None,
                  auto_p=None,
                  weights=None,
                  label=None,
-                 ifsmooth=False,
-                 smooth_kwargs=None,
-                 plot_kwargs=None):  # sourcery skip: avoid-builtin-shadow
+                 is_z_kde=False,
+                 kde_bw_method=None,
+                 if_smooth_z=False,
+                 n_smooth=0.5,
+                 errorbar_kwargs=None,
+                 **kwargs):
 
     # TODO: z_range, automatically adjust?
-    # usage of xnew / ynew
 
-    hasz = True
+    x, y, z, weights, xerr, yerr = all_asarray([x, y, z, weights, xerr, yerr])
+
+    has_z = False
+
     if z is None:
-        z = np.ones(len(x))
-        hasz = False
+        z = np.ones_like(x)
+        if is_z_kde:
+            has_z = True
+    else:
+        has_z = True
+        if is_z_kde:
+            is_z_kde = False
+            print("Warning: is_z_kde is ignored when z is provided")
+
+    if has_z and color is not None:
+        print("Warning: c is ignored when z is provided and is_z_kde is True")
 
     if weights is None:
         weights = np.ones_like(x)
 
-    bad = flag_bad(x) | flag_bad(y) | flag_bad(z)
-    x = x[~bad]
-    y = y[~bad]
-    z = z[~bad]
+    if (xerr is not None) or (yerr is not None):
+        has_err = True
+        if errorbar_kwargs is None:
+            errorbar_kwargs = {}
+        if "fmt" not in errorbar_kwargs:
+            errorbar_kwargs["fmt"] = ""
+        if "linestyle" not in errorbar_kwargs:
+            errorbar_kwargs["linestyle"] = ""
+        if "cmap" not in errorbar_kwargs:
+            errorbar_kwargs["cmap"] = kwargs.get("cmap", None)
+        if "norm" not in errorbar_kwargs:
+            errorbar_kwargs["norm"] = kwargs.get("norm", None)
+        if "alpha" not in errorbar_kwargs:
+            errorbar_kwargs["alpha"] = kwargs.get("alpha", None)
+        if "vmin" not in errorbar_kwargs:
+            errorbar_kwargs["vmin"] = kwargs.get("vmin", None)
+        if "vmax" not in errorbar_kwargs:
+            errorbar_kwargs["vmax"] = kwargs.get("vmax", None)
+    else:
+        has_err = False
 
-    if is_empty(x) or is_empty(y) or is_empty(z):
+    if ax is None:
+        ax = plt.gca()
+
+    x, y, z, weights, xerr, yerr = remove_bad([x, y, z, weights, xerr, yerr])
+
+    if any_empty([x, y, z, weights, xerr, yerr]):
         warnings.warn(
-            "The x, y or z are empty after remove bad data skip the plot")
+            "x, y, z, weights, xerr, or yerr are empty after remove bad data, skip the plot"
+        )
         return
 
     range = auto_set_range(x, y, range, auto_p)
 
-    xrange = range[0]
-    yrange = range[1]
+    x_range = range[0]
+    y_range = range[1]
 
-    is_in_range = (x >= xrange[0]) & (x <= xrange[1]) & (y >= yrange[0]) & (
-        y <= yrange[1])
+    is_in_range = (x >= x_range[0]) & (x <= x_range[1]) & (y >= y_range[0]) & (
+        y <= y_range[1])
 
-    if plot_kwargs is None:
-        plot_kwargs = {}
-
-    if ifsmooth:
-        if smooth_kwargs is None:
-            smooth_kwargs = {}
-        nsmooth = smooth_kwargs.get("nsmooth", 0.5)
-        xnew = x[is_in_range].copy()
-        ynew = y[is_in_range].copy()
-        znew = loess_2d_map(x[is_in_range], y[is_in_range], z[is_in_range],
-                            xnew, ynew, weights[is_in_range], nsmooth)
-        sc = ax.scatter(xnew, ynew, c=znew, label=label, **plot_kwargs)
-        plt.colorbar(sc, ax=ax)
-
+    _x = x[is_in_range]
+    _y = y[is_in_range]
+    _weights = weights[is_in_range]
+    if is_z_kde:
+        X = np.vstack([_x, _y])
+        _z = gaussian_kde(X, bw_method=kde_bw_method, weights=_weights)(X)
     else:
-        if hasz:
-            sc = ax.scatter(x[is_in_range],
-                            y[is_in_range],
-                            c=z[is_in_range],
-                            label=label,
-                            **plot_kwargs)
-            plt.colorbar(sc, ax=ax)
-        else:
-            ax.scatter(x[is_in_range],
-                       y[is_in_range],
-                       label=label,
-                       **plot_kwargs)
+        _z = z[is_in_range]
+
+    if has_z:
+        if if_smooth_z:
+            _z = loess_2d_map(_x, _y, _z, _x, _y, _weights, n_smooth)
+
+        sc = ax.scatter(_x, _y, c=_z, label=label, **kwargs)
+        plt.colorbar(sc, ax=ax)
+        if has_err:
+            plot_errorbar(_x,
+                          _y,
+                          c=_z,
+                          xerr=xerr,
+                          yerr=yerr,
+                          ax=ax,
+                          with_colorbar=False,
+                          **errorbar_kwargs)
+    else:
+        ax.scatter(_x, _y, c=color, label=label, **kwargs)
+        if has_err:
+            print(errorbar_kwargs)
+            plot_errorbar(_x,
+                          _y,
+                          color=color,
+                          xerr=xerr,
+                          yerr=yerr,
+                          ax=ax,
+                          with_colorbar=False,
+                          **errorbar_kwargs)
 
 
 def plot_corner(xs,
@@ -825,7 +872,18 @@ def plot_hist(x,
 # TODO: support give ax
 # TODO: single err for all
 # TODO: different upper and lower err
-def plot_errorbar(x, y, c=None, cmap='viridis', with_colorbar=False, **kwargs):
+def plot_errorbar(x,
+                  y,
+                  xerr=None,
+                  yerr=None,
+                  c=None,
+                  ax=None,
+                  vmin=None,
+                  vmax=None,
+                  cmap=None,
+                  norm=None,
+                  with_colorbar=False,
+                  **kwargs):
     """
     Plot error bars with color coding based on a third variable 'c'.
 
@@ -848,36 +906,55 @@ def plot_errorbar(x, y, c=None, cmap='viridis', with_colorbar=False, **kwargs):
             A ScalarMappable object that can be used to create a colorbar.
     """
 
-    if c is None:
-        return plt.errorbar(x, y, **kwargs)
+    x = np.asarray(x)
+    y = np.asarray(y)
 
-    # Normalize 'c' values to [0, 1] range for colormap
-    c_norm = (c - c.min()) / (c.max() - c.min())
+    if ax is None:
+        ax = plt.gca()
+
+    if c is None:
+        return plt.errorbar(x, y, xerr=xerr, yerr=yerr, **kwargs)
+    else:
+        c = np.asarray(c)
 
     # Create a colormap object
-    cmap = plt.colormaps.get_cmap(cmap)
+    if cmap is None:
+        # get default colormap from rcParams
+        cmap = plt.rcParams['image.cmap']
 
-    # Map 'c' values to colors using the colormap
-    colors = cmap(c_norm)
+    if isinstance(cmap, str):
+        cmap = plt.colormaps.get_cmap(cmap)
+
+    if vmin is None:
+        vmin = c.min()
+    if vmax is None:
+        vmax = c.max()
+
+    if norm is None:
+        norm = plt.Normalize(vmin=vmin, vmax=vmax)
+    elif isinstance(norm, str):
+        norm = scale_factory(norm, c, vmin=vmin, vmax=vmax)
+
+    colors = cmap(norm(c))
 
     # Plotting with error bars and color coding
-    yerr = kwargs.pop('yerr') if 'yerr' in kwargs else [None] * len(x)
-    xerr = kwargs.pop('xerr') if 'xerr' in kwargs else [None] * len(x)
+    if xerr is None:
+        xerr = [None] * len(x)
+    if yerr is None:
+        yerr = [None] * len(y)
 
-    for i in range(len(x)):
-        plt.errorbar(x[i],
-                     y[i],
-                     xerr=xerr[i],
-                     yerr=yerr[i],
-                     color=colors[i],
-                     **kwargs)
+    for i in range(len(x)):  # pylint: disable=consider-using-enumerate
+        ax.errorbar(x[i],
+                    y[i],
+                    xerr=xerr[i],
+                    yerr=yerr[i],
+                    color=colors[i],
+                    **kwargs)
 
     # Create a ScalarMappable and an axes-level colorbar
-    sm = plt.cm.ScalarMappable(cmap=cmap,
-                               norm=plt.Normalize(vmin=c.min(), vmax=c.max()))
-    sm._A = []  # Fake up the array of the scalar mappable. Urgh...
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
 
     if with_colorbar:
-        plt.colorbar(sm, ax=plt.gca())
+        plt.colorbar(sm, ax=ax)
 
-    return sm
+    return ax, sm
