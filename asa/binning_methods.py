@@ -63,20 +63,6 @@ def binned_statistic_2d_robust(x,
     return statistic_res, x_edge, y_edge, binnumber
 
 
-def weighted_binned_statistic(x, y, w, bins=10, statistic=None, range=None):
-    # TODO: least number in each bin
-    _, edges, bin_index = binned_statistic(x,
-                                           y,
-                                           statistic='count',
-                                           bins=bins,
-                                           range=range)
-
-    return np.array([
-        statistic(y[bin_index == i], w[bin_index == i])
-        for i in _range(1, len(edges))
-    ])
-
-
 def bin_2d(x, y, z, bins=10, range=None, min_data=0):
     # TODO: support with weights, support more statistic
     Z, x_edges, y_edges, _ = binned_statistic_2d(x,
@@ -106,8 +92,8 @@ def bin_1d(x,
            y_statistic=None,
            bins=10,
            range=None,
-           min_data=0):
-    # TODO: count, std_std
+           min_data=1):
+    # TODO: count
     '''
     input:
         x_statistic, List[str]:
@@ -275,6 +261,5 @@ def get_epdf(x,
         N = N / scaler
         lower = lower / scaler
         upper = upper / scaler
-    
-    return centers, N, lower, upper, edges, d_bin
 
+    return centers, N, lower, upper, edges, d_bin

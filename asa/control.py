@@ -141,7 +141,7 @@ def match_P_1d(x_parent, P_target, edges, P_atol=0, P_rtol=0):
                             axis=0).astype(int)
         if N_can_have.sum() <= 0:
             raise ValueError(
-                'x_parent have no data in some of non-zero bins of P_target')
+                'x_parent have no data in non-zero bins of P_target')
         P_can_have = N_can_have / N_can_have.sum()
         if np.allclose(P_can_have, P_target, atol=P_atol, rtol=P_rtol):
             N_dist_match = N_can_have

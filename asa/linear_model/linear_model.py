@@ -9,6 +9,7 @@ from ..utils import remove_bad, all_asarray, flag_bad
 
 
 def get_linear_model(k, b):
+
     def func(x):
         return k * x + b
 
@@ -16,6 +17,7 @@ def get_linear_model(k, b):
 
 
 def get_linear_model_interval_bs(func_lst, alpha):
+
     def func_interval(x):
         y_lst = [func(x) for func in func_lst]
         y_l, y_u = np.percentile(y_lst,
@@ -176,11 +178,35 @@ def get_linear_regression(x, y, x_err, y_err):
     }
 
 
-def xy2logxy(x, y, x_err, y_err):
-    logx = np.log10(x)
-    logy = np.log10(y)
-    logx_err = x_err / (x * np.log(10))
-    logy_err = y_err / (y * np.log(10))
+def xy2logxy(x, y, x_err, y_err, no_invalid_value_warning=False):
+    """
+    Convert x, y, x_err, y_err to logx, logy, logx_err, logy_err; log means log10.
+
+    Parameters
+    ----------
+    x, y, x_err, y_err : array_like
+
+    no_invalid_value_warning : bool, optional
+        If True, suppress RuntimeWarning: invalid value encountered in log10.
+    
+    Returns
+    -------
+    logx, logy, logx_err, logy_err : array_like
+    """
+
+    # Save the current error handling settings
+    old_settings = np.seterr(invalid='ignore') if no_invalid_value_warning else None
+
+    try:
+        logx = np.log10(x)
+        logy = np.log10(y)
+        logx_err = x_err / (x * np.log(10))
+        logy_err = y_err / (y * np.log(10))
+    finally:
+        # Restore the old error handling settings
+        if no_invalid_value_warning:
+            np.seterr(**old_settings) # pylint: disable=not-a-mapping
+
     return logx, logy, logx_err, logy_err
 
 
@@ -197,15 +223,15 @@ def get_ans_posterior(X, y, y_err=None):
     if y_err is not None:
         X = X / y_err[:, None]
         y = y / y_err
-    
+
     beta = np.linalg.pinv(X.T @ X) @ X.T @ y
     Sigma = np.linalg.pinv(X.T @ X)
 
     return beta, Sigma
 
-    
 
 def maximum_likelihood(x, y, x_err, y_err, k0=1, b0=0, sig_int0=0):
+
     def log_likelihood(theta, x, y, x_err, y_err):
         '''
         y = kx + b
@@ -232,6 +258,7 @@ def mcmc_posterior(x,
                    b_range=(-1e10, 1e10),
                    sig_int_range=(0, 1e10),
                    emcee_kwargs=None):
+
     def log_likelihood(theta, x, y, x_err, y_err):
         '''
         y = kx + b

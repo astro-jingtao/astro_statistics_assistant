@@ -140,7 +140,6 @@ def is_empty(x):
     return len(x) == 0
 
 
-
 def get_rank(x):
     return np.argsort(np.argsort(x))
 
