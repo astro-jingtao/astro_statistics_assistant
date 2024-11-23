@@ -160,34 +160,3 @@ def to_little_endian(x):
     else:
         # Otherwise, convert to little-endian.
         return x.byteswap().newbyteorder('little')
-
-
-def xy2ij_imshow(x, y, img_shape, extent, origin):
-    """
-    Convert x, y coordinates to the index of the image.
-
-    Parameters:
-    - x: array-like - The x-coordinate of the points.
-    - y: array-like - The y-coordinate of the points.
-    - img_shape: array-like - The shape of the image.
-    - extent: array-like - The extent of the image.
-    - origin: str - The origin of the image.
-
-    Returns:
-    - i: array-like - The first index of the image.
-    - j: array-like - The second index of the image.
-
-    """
-    x = np.asarray(x)
-    y = np.asarray(y)
-
-    dx = (extent[1] - extent[0]) / img_shape[1]
-    dy = (extent[3] - extent[2]) / img_shape[0]
-
-    i = np.floor((y - extent[2]) / dy)
-    j = np.floor((x - extent[0]) / dx)
-
-    if origin == 'upper':
-        i = img_shape[0] - i
-
-    return int(i), int(j)
