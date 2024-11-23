@@ -12,7 +12,7 @@ from ..plot_methods import (plot_contour, plot_corner, plot_heatmap,
                             plot_sample_to_point, plot_scatter, plot_trend)
 from ..projection_methods import get_LDA_projection
 from ..utils import (balance_class, flag_bad, is_bool, is_float, is_int,
-                     remove_bad, string_to_list)
+                     remove_bad, string_to_list, all_subsample)
 
 from .basic_dataset import BasicDataset
 
@@ -221,6 +221,8 @@ class Dataset(BasicDataset):
                  y_name,
                  ax,
                  z_name=None,
+                 xerr_name=None,
+                 yerr_name=None,
                  subsample=None,
                  xlabel=None,
                  ylabel=None,
@@ -232,14 +234,24 @@ class Dataset(BasicDataset):
         x = self.get_data_by_name(x_name)
         y = self.get_data_by_name(y_name)
         _z = None if (z_name is None) else self.get_data_by_name(z_name)
+        _xerr = None if (xerr_name
+                         is None) else self.get_data_by_name(xerr_name)
+        _yerr = None if (yerr_name
+                         is None) else self.get_data_by_name(yerr_name)
         _subsample = self.get_subsample(subsample)
         weights = kwargs.pop('weights', None)
         weights = self.get_data_by_name(weights) if isinstance(
             weights, str) else weights
         _weights = weights[_subsample] if weights is not None else None
-        plot_scatter(x[_subsample],
-                     y[_subsample],
+
+        _x, _y, _z, _xerr, _yerr = all_subsample([x, y, _z, _xerr, _yerr],
+                                                 _subsample)
+
+        plot_scatter(_x,
+                     _y,
                      z=_z,
+                     xerr=_xerr,
+                     yerr=_yerr,
                      ax=ax,
                      weights=_weights,
                      **kwargs)

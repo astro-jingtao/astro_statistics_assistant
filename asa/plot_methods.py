@@ -199,6 +199,8 @@ def plot_scatter(x,
                  range=None,
                  auto_p=None,
                  weights=None,
+                 x_jitter=0,
+                 y_jitter=0,
                  label=None,
                  is_z_kde=False,
                  kde_bw_method=None,
@@ -282,6 +284,11 @@ def plot_scatter(x,
         if if_smooth_z:
             _z = loess_2d_map(_x, _y, _z, _x, _y, _weights, n_smooth)
 
+        if x_jitter != 0:
+            _x += np.random.normal(0, x_jitter, len(_x))
+        if y_jitter != 0:
+            _y += np.random.normal(0, y_jitter, len(_y))
+
         sc = ax.scatter(_x, _y, c=_z, label=label, **kwargs)
         plt.colorbar(sc, ax=ax)
         if has_err:
@@ -294,9 +301,15 @@ def plot_scatter(x,
                           with_colorbar=False,
                           **errorbar_kwargs)
     else:
+
+        if x_jitter != 0:
+            _x += np.random.normal(0, x_jitter, len(_x))
+        if y_jitter != 0:
+            _y += np.random.normal(0, y_jitter, len(_y))
+
         ax.scatter(_x, _y, c=color, label=label, **kwargs)
         if has_err:
-            print(errorbar_kwargs)
+            # print(errorbar_kwargs)
             plot_errorbar(_x,
                           _y,
                           color=color,

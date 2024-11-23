@@ -144,6 +144,9 @@ def is_empty(x):
 def any_empty(xs):
     return any(is_empty(x) if x is not None else False for x in xs)
 
+def all_subsample(xs, idx):
+    return [x[idx] if x is not None else None for x in xs]
+
 def get_rank(x):
     return np.argsort(np.argsort(x))
 
