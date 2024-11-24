@@ -36,6 +36,66 @@ def xy2ij_imshow(x, y, img_shape, extent, origin):
     return int(i), int(j)
 
 
+def get_subplots(nrows,
+                 ncols,
+                 squeeze=True,
+                 left=None,
+                 right=None,
+                 bottom=None,
+                 top=None,
+                 wspaces=None,
+                 hspaces=None,
+                 height_ratios=None,
+                 width_ratios=None,
+                 **fig_kwargs):
+
+    if wspaces is None:
+        wspaces = [0.2] * (ncols - 1)
+    elif isinstance(wspaces, float) or isinstance(wspaces, int):
+        wspaces = [wspaces] * (ncols - 1)
+    if hspaces is None:
+        hspaces = [0.2] * (nrows - 1)
+    elif isinstance(hspaces, float) or isinstance(hspaces, int):
+        hspaces = [hspaces] * (nrows - 1)
+
+    if width_ratios is None:
+        width_ratios = [1] * ncols
+    if height_ratios is None:
+        height_ratios = [1] * nrows
+
+    gs_width_ratios = []
+    for panel, space in zip(width_ratios[:-1], wspaces):
+        gs_width_ratios += [panel, space]
+    gs_width_ratios.append(width_ratios[-1])
+
+    gs_height_ratios = []
+    for panel, space in zip(height_ratios[:-1], hspaces):
+        gs_height_ratios += [panel, space]
+    gs_height_ratios.append(height_ratios[-1])
+
+    gs = gridspec.GridSpec(nrows * 2 - 1,
+                           ncols * 2 - 1,
+                           left=left,
+                           right=right,
+                           bottom=bottom,
+                           top=top,
+                           wspace=0,
+                           hspace=0,
+                           width_ratios=gs_width_ratios,
+                           height_ratios=gs_height_ratios)
+    fig = plt.figure(**fig_kwargs)
+
+    axes = np.empty((nrows, ncols), dtype=object)
+    for i in range(nrows):
+        for j in range(ncols):
+            axes[i, j] = fig.add_subplot(gs[2 * i, 2 * j])
+
+    if squeeze:
+        return fig, np.squeeze(axes)
+    else:
+        return fig, axes
+
+
 def split_ax(ax,
              nrows,
              ncols,
