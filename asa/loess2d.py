@@ -1,3 +1,7 @@
+'''
+Modified from the original implementation of Kai Wang (王凯, https://www.kosmoswalker.com/).
+'''
+
 import numpy as np
 from scipy.spatial import KDTree
 

@@ -214,6 +214,9 @@ def plot_scatter(x,
                  line_kwargs=None,
                  errorbar_kwargs=None,
                  **kwargs):
+    '''
+    KDE for z is inspired by the plots of Yunning Zhao (赵韵宁).
+    '''
 
     # TODO: line ordered
     # TODO: z_range, automatically adjust?
