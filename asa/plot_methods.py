@@ -1,15 +1,17 @@
 import warnings
 
 import matplotlib.pyplot as plt
-from matplotlib.scale import scale_factory
 import numpy as np
+from matplotlib.scale import scale_factory
 from scipy.stats import gaussian_kde
 from statsmodels.stats.weightstats import DescrStatsW
 
 from .Bcorner import corner, hist2d, quantile
 from .binning_methods import bin_1d, bin_2d, get_epdf
 from .loess2d import loess_2d_map
-from .utils import any_empty, auto_set_range, flag_bad, is_empty, remove_bad, all_asarray
+from .plot_utils import ColorCycler, jitter_data
+from .utils import (all_asarray, any_empty, auto_set_range, flag_bad, is_empty,
+                    remove_bad)
 
 # TODO: extract common code
 # - flag and remove bad
@@ -189,6 +191,8 @@ def plot_trend(x,
         ax.plot(statistic['x_median'], statistic[f'y_{ytype}'], **plot_kwargs)
 
 
+scatter_color_cycle = ColorCycler()
+
 def plot_scatter(x,
                  y,
                  xerr=None,
@@ -199,16 +203,19 @@ def plot_scatter(x,
                  range=None,
                  auto_p=None,
                  weights=None,
-                 x_jitter=0,
-                 y_jitter=0,
+                 x_jitter=None,
+                 y_jitter=None,
                  label=None,
                  is_z_kde=False,
                  kde_bw_method=None,
                  if_smooth_z=False,
                  n_smooth=0.5,
+                 linestyle=None,
+                 line_kwargs=None,
                  errorbar_kwargs=None,
                  **kwargs):
 
+    # TODO: line ordered
     # TODO: z_range, automatically adjust?
 
     x, y, z, weights, xerr, yerr = all_asarray([x, y, z, weights, xerr, yerr])
@@ -227,6 +234,10 @@ def plot_scatter(x,
 
     if has_z and color is not None:
         print("Warning: c is ignored when z is provided and is_z_kde is True")
+
+    if color is None:
+        # load color from plt.rcParams
+        color = scatter_color_cycle.next()
 
     if weights is None:
         weights = np.ones_like(x)
@@ -251,6 +262,17 @@ def plot_scatter(x,
             errorbar_kwargs["vmax"] = kwargs.get("vmax", None)
     else:
         has_err = False
+
+    if linestyle is not None:
+        has_line = True
+        if line_kwargs is None:
+            line_kwargs = {}
+        if "fmt" not in errorbar_kwargs:
+            errorbar_kwargs["fmt"] = ""
+        if "alpha" not in errorbar_kwargs:
+            errorbar_kwargs["alpha"] = kwargs.get("alpha", None)
+    else:
+        has_line = False
 
     if ax is None:
         ax = plt.gca()
@@ -284,10 +306,8 @@ def plot_scatter(x,
         if if_smooth_z:
             _z = loess_2d_map(_x, _y, _z, _x, _y, _weights, n_smooth)
 
-        if x_jitter != 0:
-            _x += np.random.normal(0, x_jitter, len(_x))
-        if y_jitter != 0:
-            _y += np.random.normal(0, y_jitter, len(_y))
+        _x = jitter_data(_x, x_jitter)
+        _y = jitter_data(_y, y_jitter)
 
         sc = ax.scatter(_x, _y, c=_z, label=label, **kwargs)
         plt.colorbar(sc, ax=ax)
@@ -300,12 +320,13 @@ def plot_scatter(x,
                           ax=ax,
                           with_colorbar=False,
                           **errorbar_kwargs)
+        if has_line:
+            # TODO: somehow derive the color from _z and cmap?
+            ax.plot(_x, _y, linestyle=linestyle, color=color, **line_kwargs)
     else:
 
-        if x_jitter != 0:
-            _x += np.random.normal(0, x_jitter, len(_x))
-        if y_jitter != 0:
-            _y += np.random.normal(0, y_jitter, len(_y))
+        _x = jitter_data(_x, x_jitter)
+        _y = jitter_data(_y, y_jitter)
 
         ax.scatter(_x, _y, c=color, label=label, **kwargs)
         if has_err:
@@ -318,6 +339,8 @@ def plot_scatter(x,
                           ax=ax,
                           with_colorbar=False,
                           **errorbar_kwargs)
+        if has_line:
+            ax.plot(_x, _y, linestyle=linestyle, color=color, **line_kwargs)
 
 
 def plot_corner(xs,

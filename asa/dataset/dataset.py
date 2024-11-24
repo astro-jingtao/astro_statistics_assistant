@@ -1,22 +1,16 @@
-import itertools
 import warnings
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 from ..correlation_methods import get_RF_importance
 from ..feature_selection_methods import (search_combination_OLS,
                                          search_combination_RF_cls,
                                          search_combination_RF_reg)
-from ..plot_methods import (plot_contour, plot_corner, plot_heatmap,
-                            plot_sample_to_point, plot_scatter, plot_trend)
 from ..projection_methods import get_LDA_projection
-from ..utils import (balance_class, flag_bad, is_bool, is_float, is_int,
-                     remove_bad, string_to_list, all_subsample)
+from ..utils import (balance_class, is_bool, is_float, is_int,
+                     remove_bad, string_to_list)
 
 from .plot_dataset import PlotDataset
-
-# TODO: DF to AASTeX tabel. Maybe ref to: https://github.com/liuguanfu1120/Excel-to-AASTeX/blob/main/xlsx-to-AAS-table.ipynb
 
 
 class Dataset(PlotDataset):

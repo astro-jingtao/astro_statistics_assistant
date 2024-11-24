@@ -1,4 +1,7 @@
+from typing import Final
+
 import numpy as np
+import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 
@@ -61,3 +64,78 @@ def split_ax(ax,
         ax.axis('off')
 
     return np.squeeze(np.array(axes).reshape(nrows, ncols))
+
+
+COLOR_CYCLE: Final = plt.rcParams['axes.prop_cycle'].by_key()['color']
+
+
+class ColorCycler:
+
+    def __init__(self):
+        self.color_index = 0
+        self.current_ax = None
+
+    def next(self, ax=None):
+        if ax is None:
+            ax = plt.gca()
+        if ax is not self.current_ax:
+            self.color_index = 0
+            self.current_ax = ax
+        color = COLOR_CYCLE[self.color_index]
+        self.color_index = (self.color_index + 1) % len(COLOR_CYCLE)
+        return color
+
+
+class Jitter:
+
+    def __init__(self):
+        ...
+
+    def jit(self, x):
+        ...
+
+
+class GaussianJitter(Jitter):
+
+    def __init__(self, scale=0.1):
+        self.scale = scale
+        super().__init__()
+
+    def jitter(self, x):
+        return x + np.random.normal(0, self.scale, size=x.size)
+
+
+class UniformJitter(Jitter):
+
+    def __init__(self, scale=0.1):
+        self.scale = scale
+        super().__init__()
+
+    def jitter(self, x):
+        return x + np.random.uniform(
+            -self.scale / 2, self.scale / 2, size=x.size)
+
+
+class FixedJitter(Jitter):
+
+    def __init__(self, offset=0.1):
+        self.offset = offset
+        super().__init__()
+
+    def jitter(self, x):
+        return x + self.offset
+
+
+def jitter_data(x, jitter):
+    if jitter is None:
+        return x
+    if isinstance(jitter, tuple):
+        if jitter[0] == 'gaussian':
+            jitter = GaussianJitter(scale=jitter[1])
+        elif jitter[0] == 'uniform':
+            jitter = UniformJitter(scale=jitter[1])
+        elif jitter[0] == 'fixed':
+            jitter = FixedJitter(offset=jitter[1])
+        else:
+            raise ValueError(f'Invalid jitter type: {jitter[0]}')
+    return jitter.jitter(x)
