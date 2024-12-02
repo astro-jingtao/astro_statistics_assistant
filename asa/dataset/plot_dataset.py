@@ -55,6 +55,7 @@ class PlotDataset(BasicDataset):
                title=None,
                xlim=None,
                ylim=None,
+               legend_kwargs=None,
                **kwargs):
 
         x = self.get_data_by_name(x_name)
@@ -71,7 +72,15 @@ class PlotDataset(BasicDataset):
                    **kwargs)
         self._set_ax_properties(ax, x_name, y_name, xlabel, ylabel, title,
                                 xlim, ylim)
-        ax.legend()
+
+        for arg_key in ['errorbar_kwargs', 'fbetween_kwargs', 'plot_kwargs']:
+            if arg_key in kwargs:
+                if 'label' in kwargs[arg_key]:
+                    if legend_kwargs is None:
+                        legend_kwargs = {}
+                    ax.legend(**legend_kwargs)
+                    break
+
 
     def _heatmap(self,
                  x_name,
@@ -219,6 +228,7 @@ class PlotDataset(BasicDataset):
                  title=None,
                  xlim=None,
                  ylim=None,
+                 legend_kwargs=None,
                  **kwargs):
 
         x = self.get_data_by_name(x_name)
@@ -248,7 +258,9 @@ class PlotDataset(BasicDataset):
         self._set_ax_properties(ax, x_name, y_name, xlabel, ylabel, title,
                                 xlim, ylim)
         if kwargs.get('label', None) is not None:
-            ax.legend()
+            if legend_kwargs is None:
+                legend_kwargs = {}
+            ax.legend(**legend_kwargs)
 
     def _sample_to_point(self,
                          x_name,

@@ -132,17 +132,17 @@ COLOR_CYCLE: Final = plt.rcParams['axes.prop_cycle'].by_key()['color']
 class ColorCycler:
 
     def __init__(self):
-        self.color_index = 0
-        self.current_ax = None
+        # self.color_index = 0
+        # self.current_ax = None
+        self.record = {}
 
     def next(self, ax=None):
         if ax is None:
             ax = plt.gca()
-        if ax is not self.current_ax:
-            self.color_index = 0
-            self.current_ax = ax
-        color = COLOR_CYCLE[self.color_index]
-        self.color_index = (self.color_index + 1) % len(COLOR_CYCLE)
+        if ax not in self.record:
+            self.record[ax] = 0
+        color = COLOR_CYCLE[self.record[ax]]
+        self.record[ax] = (self.record[ax] + 1) % len(COLOR_CYCLE)
         return color
 
 
