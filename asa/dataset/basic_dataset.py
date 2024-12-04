@@ -41,8 +41,10 @@ class BasicDataset:
                  units: Union[Dict, List, None] = None,
                  snr_postfix='snr',
                  err_postfix='err') -> None:
+        
+        # self.names: np.ndarray
+        
         self.data: pd.DataFrame
-        self.names: np.ndarray
         self.labels: Dict[str, str]
         self.ranges: Dict[str, Union[List, None]]
         self.unit_labels: Dict[str, str]
@@ -63,8 +65,6 @@ class BasicDataset:
                 names = [f'x{i}' for i in range(data.shape[1])]
                 self.data.columns = names
 
-        self.names = np.asarray(names, dtype='<U64')
-
         self.labels = self._init_parameter(labels, 'labels', names)
         self.ranges = self._init_parameter(ranges, 'ranges', names)
         self.unit_labels = self._init_parameter(unit_labels, 'unit_labels',
@@ -81,6 +81,10 @@ class BasicDataset:
             return {}
         else:
             raise ValueError(f'{parameter_name} should be dict or list')
+
+    @property
+    def names(self):
+        return np.asarray(self.data.columns, dtype='<U64')
 
     def __iter__(self):
         return iter(self.data.columns)
@@ -186,10 +190,7 @@ class BasicDataset:
         self.unit_labels.update(unit_labels_dict)
 
     def update_names(self, names_dict) -> None:
-        for name in names_dict:
-            idx = self.names == name
-            self.names[idx] = names_dict[name]
-            self.data.rename(columns={name: names_dict[name]}, inplace=True)
+        self.data.rename(columns=names_dict, inplace=True)
 
     def update_ranges(self, ranges_dict) -> None:
         self.ranges.update(ranges_dict)
@@ -198,7 +199,7 @@ class BasicDataset:
         self.units.update(units_dict)
 
     def summary(self, stats_info=False) -> None:
-        print(self.__str__())
+        print(str(self))
         if stats_info:
             print(self.data.describe())
 
@@ -241,7 +242,6 @@ class BasicDataset:
         # self.data is a DataFrame
         self.data = pd.concat(
             [self.data, pd.DataFrame(new_cols, columns=new_names)], axis=1)
-        self.names = np.asarray(list(self.names) + list(new_names))
 
     def add_row(self, new_rows) -> None:
         self.data = pd.concat(
@@ -266,7 +266,6 @@ class BasicDataset:
     def _del_col(self, key):
         # self.data in a Pandas DataFrame
         self.data.drop(self.names[key], axis=1, inplace=True)
-        self.names = np.delete(self.names, key, axis=0)
 
     def del_row(self, nrow) -> None:
         self.data.drop(nrow, axis=0, inplace=True)
