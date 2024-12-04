@@ -25,7 +25,6 @@ TREMD_STD_MEDIAN_ALIASES = ['std_median']
 trend_color_cycle = ColorCycler()
 
 
-# TODO: color setting
 def plot_trend(x,
                y,
                bins=20,
@@ -132,7 +131,8 @@ def plot_trend(x,
             "The x or y are empty after remove bad data, skip the plot")
         return
 
-    range = auto_set_range(x, y, range, auto_p)
+    # TODO: better auto_set_range
+    range = auto_set_range(x, x, range, auto_p)[0]
 
     if weights is None:
         weights = np.ones_like(x)
@@ -304,6 +304,7 @@ def plot_scatter(x,
                  yerr=None,
                  z=None,
                  color=None,
+                 with_colorbar=True,
                  ax=None,
                  range=None,
                  auto_p=None,
@@ -418,7 +419,8 @@ def plot_scatter(x,
         _y = jitter_data(_y, y_jitter)
 
         sc = ax.scatter(_x, _y, c=_z, label=label, **kwargs)
-        plt.colorbar(sc, ax=ax)
+        if with_colorbar:
+            plt.colorbar(sc, ax=ax)
         if has_err:
             plot_errorbar(_x,
                           _y,

@@ -1,9 +1,13 @@
 import numpy as np
+import pytest
 from scipy.stats import binned_statistic, binned_statistic_2d
 
-from asa.weighted_statistic import median, mean, std, std_mean, std_median, quantile
-from asa.binning_methods import get_stat_method, bin_1d, binned_statistic_robust, binned_statistic_2d_robust, get_epdf
+from asa.binning_methods import (bin_1d, binned_statistic_2d_robust,
+                                 binned_statistic_robust, get_epdf,
+                                 get_epdf_func, get_stat_method)
 from asa.utils import flag_bad
+from asa.weighted_statistic import (mean, median, quantile, std, std_mean,
+                                    std_median)
 
 
 class TestGetStatMethod:
@@ -203,3 +207,28 @@ class TestGetEPDF:
         assert np.array_equal(upper, [2] * 10)
         assert np.array_equal(edges, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
         assert np.array_equal(d_bin, [1] * 10)
+
+
+
+_bins = [10, 20, 30]
+_ranges = [(-3, 3), (-2, 2), (-1, 1), None]
+_weights = [None, np.random.uniform(size=100)]
+_all_combinations = [(b, r, w) for b in _bins for r in _ranges
+                    for w in _weights]
+
+class TestGetEPDFFunc:
+    @pytest.mark.parametrize('bins, range, weights', _all_combinations)
+    def test_get_epdf_func_basic(self, bins, range, weights):
+        x = np.random.randn(100)
+        f = get_epdf_func(x, bins=bins, range=range, weights=weights)
+        assert callable(f)
+        assert len(f(np.linspace(-3, 3, 10))) == 10
+
+        pdf, bin_edges = np.histogram(x,
+                                      bins=bins,
+                                      range=range,
+                                      weights=weights,
+                                      density=True)
+        bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+
+        assert np.allclose(f(bin_centers), pdf, atol=1e-10)

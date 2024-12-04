@@ -2,6 +2,7 @@ from functools import partial
 
 import numpy as np
 from scipy.stats import binned_statistic, binned_statistic_2d
+from scipy import interpolate
 from astropy.stats import poisson_conf_interval
 
 from . import weighted_statistic as w
@@ -263,3 +264,24 @@ def get_epdf(x,
         upper = upper / scaler
 
     return centers, N, lower, upper, edges, d_bin
+
+
+def get_epdf_func(x, bins=10, range=None, weights=None, return_data=False):
+    pdf, bin_edges = np.histogram(x,
+                                  bins=bins,
+                                  range=range,
+                                  weights=weights,
+                                  density=True)
+    bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+    bin_centers_ext = np.concatenate(
+        [[bin_centers[0] - (bin_centers[1] - bin_centers[0])], bin_centers,
+         [bin_centers[-1] + (bin_centers[-1] - bin_centers[-2])]])
+    pdf_ext = np.concatenate([[0], pdf, [0]])
+    f = interpolate.interp1d(bin_centers_ext,
+                             pdf_ext,
+                             fill_value='extrapolate',
+                             kind='nearest')
+    if return_data:
+        return f, bin_centers_ext, pdf_ext
+    else:
+        return f
