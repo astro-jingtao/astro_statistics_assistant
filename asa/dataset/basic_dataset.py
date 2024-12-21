@@ -41,9 +41,9 @@ class BasicDataset:
                  units: Union[Dict, List, None] = None,
                  snr_postfix='snr',
                  err_postfix='err') -> None:
-        
+
         # self.names: np.ndarray
-        
+
         self.data: pd.DataFrame
         self.labels: Dict[str, str]
         self.ranges: Dict[str, Union[List, None]]
@@ -85,6 +85,10 @@ class BasicDataset:
     @property
     def names(self):
         return np.asarray(self.data.columns, dtype='<U64')
+
+    @property
+    def shape(self):
+        return self.data.shape
 
     def __iter__(self):
         return iter(self.data.columns)
@@ -177,7 +181,7 @@ class BasicDataset:
 
     def __str__(self) -> str:
         summary_string = "" + 'Dataset summary:\n'
-        summary_string += f'  Data shape: {self.data.shape}\n'
+        summary_string += f'  Data shape: {self.shape}\n'
         summary_string += f'  Names: {self.names}\n'
         label_lst = [self.labels.get(name, name) for name in self.names]
         summary_string += f'  Labels: {label_lst}\n'
@@ -295,27 +299,32 @@ class BasicDataset:
         else:
             return name in self.names
 
-    def get_data_by_name(self, name, with_unit=False) -> np.ndarray:
+    def get_data_by_name(self,
+                         name,
+                         subsample=None,
+                         with_unit=False) -> np.ndarray:
         '''
         with_unit:
             If True, return the data with unit
             If False, return the data without unit
             Ignored when get snr, err, or with operation
         '''
-        # TODO: support subsample
         # sourcery skip: remove-unnecessary-else, swap-if-else-branches
         if name.endswith(f'_{self.snr_postfix}'):
-            return self.get_snr_by_name(name)
+            data = self.get_snr_by_name(name)
         elif name.endswith(f'_{self.err_postfix}'):
-            return self.get_err_by_name(name)
-        if '@' in name:
+            data = self.get_err_by_name(name)
+        elif '@' in name:
             op, name = name.split('@')
-            return self.OP_MAP[op](self[name].to_numpy())
+            data = self.OP_MAP[op](self[name].to_numpy())
         else:
             if with_unit:
-                return self[name].to_numpy() * self.get_unit_by_name(name)
+                data = self[name].to_numpy() * self.get_unit_by_name(name)
             else:
-                return self[name].to_numpy()
+                data = self[name].to_numpy()
+
+        subsample = self.get_subsample(subsample)
+        return data[subsample]
 
     gdn = get_data_by_name
 
@@ -338,11 +347,11 @@ class BasicDataset:
         else:
             # sourcery skip: remove-unnecessary-else
             # if in names, just return it
-            data_name = self.remove_snr_postfix(snr_name)
             if snr_name in self.names:
                 return self[snr_name].to_numpy()
             # if not in names, try to find the snr
             else:
+                data_name = self.remove_snr_postfix(snr_name)
                 err_name = f'{data_name}_{self.err_postfix}'
                 if err_name in self.names:
                     return np.abs(self[data_name].to_numpy()
@@ -376,8 +385,10 @@ class BasicDataset:
                         f'can not find err_name: {err_name}, nor snr_name: {snr_name}'
                     )
 
-    def get_data_by_names(self, names) -> np.ndarray:
-        return np.asarray([self.get_data_by_name(name) for name in names]).T
+    def get_data_by_names(self, names, subsample=None) -> np.ndarray:
+        return np.asarray([
+            self.get_data_by_name(name, subsample=subsample) for name in names
+        ]).T
 
     gdns = get_data_by_names
 
@@ -521,7 +532,7 @@ class BasicDataset:
                     ']': ')'
                 }[meta_inequality_list[i]]
                 continue
-            if meta_inequality_list[i] not in ['&', '|']:
+            if meta_inequality_list[i] not in ['~', '&', '|']:
                 if self.is_legal_name(meta_inequality_list[i]):
                     meta_inequality_list[
                         i] = f'self.string_to_subsample("{meta_inequality_list[i]}")'
@@ -538,7 +549,6 @@ class BasicDataset:
             print(command)
         return eval(command)  # pylint: disable=eval-used
 
-    # TODO: support ~
     def inequality_to_subsample_single(self,
                                        inequality_string,
                                        debug=False) -> np.ndarray:

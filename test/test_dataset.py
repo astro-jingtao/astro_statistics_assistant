@@ -131,13 +131,12 @@ class TestDataset:
         assert np.array_equal(dataset['x1'], x)
 
         dataset.update_names({'x1': '777', 'y': 'I_love_u', 'z': 'good'})
-        assert np.array_equal(dataset.names, np.array(['777', 'I_love_u', 'good']))
+        assert np.array_equal(dataset.names,
+                              np.array(['777', 'I_love_u', 'good']))
         assert np.array_equal(np.asarray(dataset.data.columns), dataset.names)
         assert np.array_equal(dataset['777'], x)
         assert np.array_equal(dataset['I_love_u'], y)
         assert np.array_equal(dataset['good'], z)
-
-
 
     @pytest.mark.filterwarnings("ignore::RuntimeWarning")  # np.log10(0)
     def test_get_range_by_name(self):
@@ -412,6 +411,25 @@ class TestDatasetInequality:
         assert np.array_equal(
             dataset.inequality_to_subsample("x_bool & y_bin", debug=debug),
             np.array((x > 5) & (y > 5)))
+
+        # ~
+        assert np.array_equal(
+            dataset.inequality_to_subsample("~(x > 5)", debug=debug),
+            np.array((x <= 5)))
+
+        assert np.array_equal(
+            dataset.inequality_to_subsample("(x > 5) & ~(y > 5)", debug=debug),
+            np.array((x > 5) & ~(y > 5)))
+
+        assert np.array_equal(
+            dataset.inequality_to_subsample(
+                "[(x > 5) | (y > 5)] & ~[(x > 5) & (y > 5)]", debug=debug),
+            dataset.inequality_to_subsample(
+                "[(x > 5) & (y <= 5)] | [(x <= 5) & (y > 5)]", debug=debug))
+
+        assert np.array_equal(
+            dataset.inequality_to_subsample("x_bool & ~y_bool", debug=debug),
+            np.array((x > 5) & ~(y > 5)))
 
         # (10 > a > 5) will raise error
         # not a bug, we require the user to use [10 > a] & [a > 5]
