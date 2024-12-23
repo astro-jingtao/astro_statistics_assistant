@@ -92,6 +92,7 @@ def bin_1d(x,
            x_statistic=None,
            y_statistic=None,
            bins=10,
+           quantile=False,
            range=None,
            min_data=1):
     # TODO: count
@@ -101,7 +102,11 @@ def bin_1d(x,
             'mean', 'median', 'std', 'std_mean', 'std_median', 'std_std', 'q:x' (x is a number between 0 and 1)
         y_statistic, List[str]:
             'mean', 'median', 'std', 'std_mean', 'std_median', 'std_std', 'q:x' (x is a number between 0 and 1)
-    
+        bins, int:
+            The number of bins.
+        quantile, bool:
+            If True, the binning is done in quantiles.
+        
     notes:
         ...
     '''
@@ -115,6 +120,11 @@ def bin_1d(x,
         y_statistic = ['mean']
     elif isinstance(y_statistic, str):
         y_statistic = [y_statistic]
+
+    if quantile:
+        if isinstance(bins, int):
+            bins = np.linspace(0, 1, bins + 1)
+        bins = np.quantile(x, bins)
 
     _, edges, bin_index = binned_statistic_robust(x,
                                                   y,

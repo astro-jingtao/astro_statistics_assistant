@@ -28,12 +28,14 @@ trend_color_cycle = ColorCycler()
 def plot_trend(x,
                y,
                bins=20,
+               quantile=False,
                x_method='center',
                y_method='median',
                yerr_method='quantile',
                yerr_args=None,
                fbetween_method=None,
                fbetween_args=None,
+               fbetween_bad_policy='omit',
                ax=None,
                range=None,
                auto_p=None,
@@ -76,6 +78,12 @@ def plot_trend(x,
 
     fbetween_args : tuple or None, optional
         Arguments for fbetween_method. Default is None.
+
+    fbetween_bad_policy : str, optional
+        Policy for handling bad values in fbetween_method. Default is 'omit'.
+        'omit' will omit the bad values (default behavior for `fill_between` in matplotlib).
+        'skip' will skip the bad values.
+        'zero' will set the bad values to zero
 
     ax : matplotlib.axes.Axes, optional
         The axes on which to plot. If None, uses the current axes.
@@ -178,6 +186,7 @@ def plot_trend(x,
                                        x_statistic=x_statistic,
                                        y_statistic=y_statistic,
                                        bins=bins,
+                                       quantile=quantile,
                                        range=range,
                                        min_data=N_min)
 
@@ -199,7 +208,8 @@ def plot_trend(x,
         if "color" not in plot_kwargs:
             plot_kwargs["color"] = color
 
-        ax.plot(x_bin, y_bin, **plot_kwargs)
+        _x_bin, _y_bin = remove_bad([x_bin, y_bin])
+        ax.plot(_x_bin, _y_bin, **plot_kwargs)
 
     if yerr_method is not None:
 
@@ -220,7 +230,8 @@ def plot_trend(x,
         if "linestyle" not in errorbar_kwargs:
             errorbar_kwargs["linestyle"] = ""
 
-        ax.errorbar(x_bin, _y_bin, yerr=yerr, **errorbar_kwargs)
+        _x_bin, _y_bin = remove_bad([x_bin, _y_bin])
+        ax.errorbar(_x_bin, _y_bin, yerr=yerr, **errorbar_kwargs)
 
     if fbetween_method is not None:
 
@@ -235,7 +246,20 @@ def plot_trend(x,
         if "alpha" not in fbetween_kwargs:
             fbetween_kwargs["alpha"] = 0.2
 
-        ax.fill_between(x_bin, fbetween[0], fbetween[1], **fbetween_kwargs)
+        _fbt_low, _fbt_up = fbetween
+
+        if fbetween_bad_policy == 'omit':
+            _x_bin, _fbt_low, _fbt_up = x_bin, _fbt_low, _fbt_up
+        elif fbetween_bad_policy == 'skip':
+            _x_bin, _fbt_low, _fbt_up = remove_bad([x_bin, _fbt_low, _fbt_up])
+        elif fbetween_bad_policy == 'zero':
+            is_bad = flag_bad(_fbt_low) | flag_bad(_fbt_up)
+            _fbt_low[is_bad] = 0
+            _fbt_up[is_bad] = 0
+        else:
+            raise ValueError(f"{fbetween_bad_policy} is not supported")
+
+        ax.fill_between(_x_bin, _fbt_low, _fbt_up, **fbetween_kwargs)
 
 
 def _trend_get_y_statistic(method, args):

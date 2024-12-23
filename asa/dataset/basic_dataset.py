@@ -244,8 +244,7 @@ class BasicDataset:
             new_cols = new_cols[:, np.newaxis]
 
         # self.data is a DataFrame
-        self.data = pd.concat(
-            [self.data, pd.DataFrame(new_cols, columns=new_names)], axis=1)
+        self.data.loc[:, new_names] = new_cols
 
     def add_row(self, new_rows) -> None:
         self.data = pd.concat(
@@ -571,7 +570,7 @@ class BasicDataset:
             if string not in op_list:
                 this_inequality = inequality_list[i:i + 3]
                 # enumerate [a, >, b]
-                # pylint: disable-next=consider-using-enumerat
+                # pylint: disable-next=consider-using-enumerate
                 for j in range(len(this_inequality)):
                     all_element_in_this = parse_op(this_inequality[j])
                     if debug:
@@ -599,7 +598,7 @@ class BasicDataset:
         title_ndigits=2,
         return_edges=False,
         list_shape=None,
-        range=None,
+        range=None, # pylint: disable=redefined-builtin
         subsample=None
     ) -> Union[tuple[List, List], tuple[List, List, Union[List, np.ndarray]]]:
         """

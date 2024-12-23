@@ -88,6 +88,15 @@ class TestDataset:
         assert np.array_equal(dataset['x3'], x)
         assert np.array_equal(dataset['x5'], y)
 
+        # TODO: set list
+        
+
+        # not contiguous index
+        dataset_nc = Dataset(dataset.data.iloc[[0, 2, 4, 6, 8]])
+        dataset_nc['kk'] = np.array([0, 2, 4, 6, 8])
+        assert dataset_nc.shape[0] == 5
+        assert np.array_equal(dataset_nc['kk'], [0, 2, 4, 6, 8])
+
     def test_construct(self):
         _, x, y, z = gen_dataset()
 
