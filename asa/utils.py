@@ -82,10 +82,17 @@ def list_reshape(lst: List, shape) -> List[List]:
     """
     return [lst[i:i + shape[1]] for i in _range(0, len(lst), shape[1])]
 
+def set_range_default(x):
+    if len(x) == 0:
+        return [0, 1]
+    elif len(x) == 1:
+        return [x[0] - 0.5, x[0] + 0.5]
+    else:
+        return [np.min(x), np.max(x)]
 
 def auto_set_range(x, y, _range, auto_p):
     if _range is None:
-        _range = [[x.min(), x.max()], [y.min(), y.max()]]
+        _range = [set_range_default(x), set_range_default(y)]
     elif _range == 'auto':
         if auto_p is None:
             auto_p = ([1, 99], [1, 99])

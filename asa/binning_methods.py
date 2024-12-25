@@ -22,8 +22,10 @@ def binned_statistic_robust(x, values, statistic='mean', bins=10, range=None):
     _x = x[~is_bad]
     _values = values[~is_bad]
 
+    _bins = np.histogram_bin_edges(_x, bins=bins, range=range)
+
     statistic_res, bin_edges, _binnumber = binned_statistic(
-        _x, _values, statistic=statistic, bins=bins, range=range)
+        _x, _values, statistic=statistic, bins=_bins, range=range)
 
     binnumber = np.full(len(x), -1)
     binnumber[~is_bad] = _binnumber
@@ -125,6 +127,11 @@ def bin_1d(x,
         if isinstance(bins, int):
             bins = np.linspace(0, 1, bins + 1)
         bins = np.quantile(x, bins)
+        if np.diff(bins).min() == 0:
+            bins = len(bins) - 1
+            print(
+                f'Warning: quantile bins have non-unique values,\n usually due to too many bins compared to the data size.\n Back to bins = {bins}. '
+            )
 
     _, edges, bin_index = binned_statistic_robust(x,
                                                   y,

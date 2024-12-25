@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from asa.utils import (balance_class, is_bool, is_float, is_int, list_reshape,
-                       remove_bad, to_little_endian)
+                       remove_bad, to_little_endian, auto_set_range)
 
 
 class TestUtils:
@@ -144,6 +144,16 @@ class TestUtils:
         assert np.array_equal(_x, x[~np.isnan(y)])
         assert np.array_equal(_y, y[~np.isnan(y)])
         assert _z is None
+
+    def test_auto_range(self):
+        assert np.array_equal(auto_set_range([1, 2, 3], [4, 5, 6], None, None),
+                              [[1, 3], [4, 6]])
+
+        assert np.array_equal(auto_set_range([1], [4], None, None),
+                              [[0.5, 1.5], [3.5, 4.5]])
+
+        assert np.array_equal(auto_set_range([], [], None, None),
+                              [[0, 1], [0, 1]])
 
 
 class TestToLittle:

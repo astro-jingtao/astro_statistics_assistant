@@ -209,11 +209,19 @@ class PlotDataset(BasicDataset):
                 ylabel = self.get_label_by_name(y_name)
             ax.set_ylabel(ylabel)
 
-        if xlim is not None:
-            ax.set_xlim(xlim)
+        if xlim is not False:
+            if xlim is None:
+                xlim = self.get_range_by_name(x_name)
+            # if x_name is not in self.ranges, xlim will also be None
+            if xlim is not None:
+                ax.set_xlim(xlim)
 
-        if ylim is not None:
-            ax.set_ylim(ylim)
+        if ylim is not False:
+            if ylim is None:
+                ylim = self.get_range_by_name(y_name)
+            # if y_name is not in self.ranges, ylim will also be None
+            if ylim is not None:
+                ax.set_ylim(ylim)
 
     def _scatter(self,
                  x_name,

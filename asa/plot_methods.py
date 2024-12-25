@@ -926,6 +926,46 @@ def plot_sample_to_point(x,
     ax.errorbar(x_cen, y_cen, xerr=x_err, yerr=y_err, **errorbar_kwargs)
 
 
+def plot_log_line(p1=None,
+                  p2=None,
+                  k=None,
+                  b=None,
+                  ax=None,
+                  range=None,
+                  N=1000,
+                  is_input_log=True,
+                  **kwargs):
+
+    if ax is None:
+        ax = plt.gca()
+
+    if not is_input_log:
+        p1 = (np.log10(p1[0]), np.log10(p1[1])) if p1 is not None else None
+        p2 = (np.log10(p2[0]), np.log10(p2[1])) if p2 is not None else None
+
+    if range is None:
+        range = ax.get_xlim()
+
+    xx = np.linspace(range[0], range[1], N)
+
+    if (k is None) or (b is None):
+        if p1 is not None:
+            if p2 is not None:
+                k = (p2[1] - p1[1]) / (p2[0] - p1[0])
+                b = p1[1] - k * p1[0]
+            elif k is not None:
+                b = p1[1] - k * p1[0]
+            elif b is not None:
+                k = (p1[1] - b) / p1[0]
+            else:
+                raise ValueError("Only p1 is provided, need p2 or k or b")
+        else:
+            raise ValueError("No input provided")
+
+    yy = 10**(k * np.log10(xx) + b)
+    ax.plot(xx, yy, **kwargs)
+
+
 def plot_line(x=None,
               y=None,
               p1=None,
