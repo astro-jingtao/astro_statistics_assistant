@@ -617,7 +617,7 @@ def plot_corner(xs,
         the 2-D histogram plots.
 
     """
-    corner(xs,
+    return corner(xs,
            bins=bins,
            range=range,
            weights=weights,
@@ -1037,6 +1037,8 @@ def imshow(X, ax=None, mask=None, **kwargs):
 
 
 # TODO: consider P(p|k, N)
+# TODO: use plt.hist, only add errorbar if needed
+# TODO: use plt.bar only for color coding and histtype == 'bar'
 def plot_hist(x,
               bins=10,
               range=None,
@@ -1078,7 +1080,6 @@ def plot_hist(x,
         }
 
 
-# TODO: support give ax
 # TODO: single err for all
 # TODO: different upper and lower err
 def plot_errorbar(x,

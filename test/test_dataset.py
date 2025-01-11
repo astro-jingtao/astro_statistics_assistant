@@ -88,8 +88,8 @@ class TestDataset:
         assert np.array_equal(dataset['x3'], x)
         assert np.array_equal(dataset['x5'], y)
 
-        # TODO: set list
-        
+        dataset['t'] = list(x)
+        assert np.array_equal(dataset['t'], x)
 
         # not contiguous index
         dataset_nc = Dataset(dataset.data.iloc[[0, 2, 4, 6, 8]])
@@ -296,23 +296,103 @@ class TestDataset:
         assert dataset.get_unit_by_name('x') == u.cm
 
     def test_add_col(self):
+
+        # scaler
         dataset, x, y, z = gen_dataset()
-        dataset.add_col(x * 2, 'x2')
-        assert np.array_equal(dataset['x2'], x * 2)
+        dataset.add_col(5, 't')
+        assert np.all(dataset['t'] == 5)
 
-        # should raise error
+        # scaler - with unit
+        dataset, x, y, z = gen_dataset()
+        dataset.update_units({'t': u.cm, 'u': u.m})
+        dataset.add_col(5 * u.m, 't')
+        assert np.all(dataset['t'] == 500)
+        dataset.add_col(5 * u.m, 'u')
+        assert np.all(dataset['u'] == 5)
+
+        # 1D array
+        dataset, x, y, z = gen_dataset()
+        dataset.add_col(x * 2, 't')
+        assert np.array_equal(dataset['t'], x * 2)
+
+        # 1D array - list or tuple
+        dataset, x, y, z = gen_dataset()
+        dataset.add_col(list(x * 2), 't')
+        assert np.array_equal(dataset['t'], x * 2)
+
+        # 1D array - with unit
+        dataset, x, y, z = gen_dataset()
+        dataset.update_units({'t': u.cm, 'u': u.m})
+        dataset.add_col(x * 2 * u.km, 't')
+        assert np.array_equal(dataset['t'], x * 2 * 1000 * 100)
+        dataset.add_col(x * 2 * u.cm, 'u')
+        assert np.array_equal(dataset['u'], x * 2 / 100)
+
+        # 2D array
+        dataset, x, y, z = gen_dataset()
+        dataset.add_col(np.c_[x * 2, y * 3], ['t', 'u'])
+        assert np.array_equal(dataset['t'], x * 2)
+        assert np.array_equal(dataset['u'], y * 3)
+
+        # list or tuple of scaler or 1D array
+        dataset, x, y, z = gen_dataset()
+        dataset.add_col([x * 2, y * 3], ['t', 'u'])
+        assert np.array_equal(dataset['t'], x * 2)
+        assert np.array_equal(dataset['u'], y * 3)
+
+        # raise: names already exist
+        dataset, x, y, z = gen_dataset()
         with pytest.raises(ValueError) as excinfo:
-            dataset.add_col(x * u.cm, 'x3')
+            dataset.add_col(x * 2, 'x')
+            assert "x already exists in the dataset" in str(excinfo.value)
 
-        dataset.update_units({'x3': u.cm, 'x4': u.cm})
-        dataset.add_col(x * u.cm, 'x3')
-        assert np.array_equal(dataset['x3'], x)
-        dataset.add_col(x * u.m, 'x4')
-        assert np.array_equal(dataset['x4'], x * 100)
+        # raise: scaler for multiple columns
+        dataset, x, y, z = gen_dataset()
+        with pytest.raises(ValueError) as excinfo:
+            dataset.add_col(5, ['t', 'u'])
+            assert "new_cols can only be a scalar if new_names has length 1" in str(
+                excinfo.value)
 
-        dataset.add_col([x**2, 2**x], ['x6', 'x7'])
-        assert np.array_equal(dataset['x6'], x**2)
-        assert np.array_equal(dataset['x7'], 2**x)
+        # raise: n_features not match - 1D array
+        dataset, x, y, z = gen_dataset()
+        with pytest.raises(ValueError) as excinfo:
+            dataset.add_col(x * 2, ['t', 'u'])
+            assert "1 columns, but 2 names" in str(excinfo.value)
+
+        # raise: n_features not match - 2D array
+        dataset, x, y, z = gen_dataset()
+        with pytest.raises(ValueError) as excinfo:
+            dataset.add_col(np.c_[x * 2, y * 3, z * 4], ['t', 'u'])
+            assert "3 columns, but 2 names" in str(excinfo.value)
+
+        # raise: length not match - 1D array
+        dataset, x, y, z = gen_dataset()
+        with pytest.raises(ValueError) as excinfo:
+            dataset.add_col(x[:-1] * 2, 't')
+            assert f"new_cols has length {len(x) - 1}, but the dataset has {len(x)} rows" in str(
+                excinfo.value)
+
+        # raise: length not match - 2D array
+        dataset, x, y, z = gen_dataset()
+        with pytest.raises(ValueError) as excinfo:
+            dataset.add_col(np.c_[x[:-1] * 2, y[:-1] * 3, z[:-1] * 4],
+                            ['t', 'u', 'v'])
+            assert f"new_cols has length {len(x) - 1}, but the dataset has {len(x)} rows" in str(
+                excinfo.value)
+
+        # raise: have not set unit for column
+        dataset, x, y, z = gen_dataset()
+        with pytest.raises(ValueError) as excinfo:
+            dataset.add_col(x * u.cm, 't')
+            assert "You are trying to add a column with unit" in str(
+                excinfo.value)
+
+        # raise: wrong denmension
+        dataset, x, y, z = gen_dataset()
+        with pytest.raises(ValueError) as excinfo:
+            dataset.add_col(np.ones((2, 3, 2)), 't')
+            assert "Unexpected ndim of new_cols: 3" in str(
+                excinfo.value)
 
     def test_short_name(self):
         dataset, x, y, z = gen_dataset()

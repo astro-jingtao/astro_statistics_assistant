@@ -210,9 +210,11 @@ class BasicDataset:
     def add_col(self, new_cols, new_names) -> None:
         '''
         Input:
-            new_cols: array-like except list or tuple, (n_samples, n_features) or (n_samples,); 
-                      if list or tuple, (n_features, ), each element should be array-like
-            new_names: str or list of str
+            new_cols: scaler, array-like, or list (or tuple) of scaler or array-like
+                      if list (or tuple) with length (n_features, ), each element should be array-like. If want to add multiple columns with unit, can only use this 
+                      format.
+                      
+            new_names: str or list of str, (n_features, )
 
         Add new columns to the dataset
         '''
@@ -223,27 +225,55 @@ class BasicDataset:
             if name in self.names:
                 raise ValueError(f'{name} already exists in the dataset')
 
+        n_names = len(new_names)
+
         if isinstance(new_cols, list) or isinstance(new_cols, tuple):
-            for nc, nn in zip(new_cols, new_names):
-                self.add_col(nc, nn)
-            return
+            if n_names == len(new_cols):
+                for nc, nn in zip(new_cols, new_names):
+                    self.add_col(nc, nn)
+                return
 
-        # check units if new_cols is 1d
-        d_new_cols = np.asarray(new_cols).ndim
-        if d_new_cols == 1:
-            if isinstance(new_cols, u.Quantity):
-                if new_names[0] in self.units:
-                    new_cols = new_cols.to(self.units[new_names[0]]).value
-                else:
-                    raise ValueError(
-                        f'You are trying to add a column with unit, but the unit of {new_names[0]} is not specified in the dataset. Please specify the unit of {new_names[0]} first.'
-                    )
+        # should use asanyarray to handle Quantity
+        new_cols = np.asanyarray(new_cols)
 
-        new_cols = np.asarray(new_cols)
-        if new_cols.ndim == 1:
-            new_cols = new_cols[:, np.newaxis]
+        if new_cols.ndim == 0:
+            if n_names > 1:
+                raise ValueError(
+                    f"new_cols can only be a scalar if new_names has length 1, but got {n_names} \n consider use list (or tuple) of scaler instead."
+                )
+        elif new_cols.ndim == 1:
+            if n_names > 1:
+                raise ValueError(f"1 columns, but {n_names} names")
+            if new_cols.shape[0] != self.shape[0]:
+                raise ValueError(
+                    f"new_cols has length {new_cols.shape[0]}, but the dataset has {self.shape[0]} rows"
+                )
+        elif new_cols.ndim == 2:
+            if new_cols.shape[1] != n_names:
+                raise ValueError(
+                    f"{new_cols.shape[1]} columns, but {n_names} names"
+                )
+            if new_cols.shape[0] != self.shape[0]:
+                raise ValueError(
+                    f"new_cols has {new_cols.shape[0]} rows, but the dataset has {self.shape[0]} rows"
+                )
+        else:
+            raise ValueError(f"Unexpected ndim of new_cols: {new_cols.ndim}")
 
-        # self.data is a DataFrame
+        if isinstance(new_cols, u.Quantity):
+
+            if len(new_names) > 1:
+                raise ValueError(
+                    'Multiple columns with unit can only be added by using new_cols as a list (or tuple) of array-like or scaler with length (n_features, )'
+                )
+
+            if new_names[0] in self.units:
+                new_cols = new_cols.to(self.units[new_names[0]]).value
+            else:
+                raise ValueError(
+                    f'You are trying to add a column with unit, but the unit of {new_names[0]} is not specified in the dataset. Please specify the unit of {new_names[0]} first.'
+                )
+
         self.data.loc[:, new_names] = new_cols
 
     def add_row(self, new_rows) -> None:
@@ -598,7 +628,7 @@ class BasicDataset:
         title_ndigits=2,
         return_edges=False,
         list_shape=None,
-        range=None, # pylint: disable=redefined-builtin
+        range=None,  # pylint: disable=redefined-builtin
         subsample=None
     ) -> Union[tuple[List, List], tuple[List, List, Union[List, np.ndarray]]]:
         """

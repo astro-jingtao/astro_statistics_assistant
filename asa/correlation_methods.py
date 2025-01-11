@@ -1,23 +1,26 @@
 import numpy as np
-from scipy.stats import pearsonr, spearmanr, kendalltau
+from scipy.stats import kendalltau, pearsonr, spearmanr
 
 try:
-    from sklearnex.ensemble import RandomForestClassifier as RandomForestClassifier_ex
-    from sklearnex.ensemble import RandomForestRegressor as RandomForestRegressor_ex
+    from sklearnex.ensemble import \
+        RandomForestClassifier as RandomForestClassifier_ex
+    from sklearnex.ensemble import \
+        RandomForestRegressor as RandomForestRegressor_ex
     EX_AVAILABLE = True
 except ImportError:
     EX_AVAILABLE = False
 
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from scipy.special import digamma
 from math import log
+
 import scipy.spatial as ss
+from scipy.optimize import differential_evolution
+from scipy.special import digamma
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.inspection import permutation_importance
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import QuantileTransformer
-from scipy.optimize import differential_evolution
 
-from .utils import remove_bad
+from .utils import remove_bad, all_asarray
 
 USE_EX = True
 
@@ -47,7 +50,7 @@ def get_RF_importance(x,
 
     if RF_kwargs is None:
         RF_kwargs = {}
-    
+
     if add_random:
         x_rand = np.zeros((x.shape[0], n_random))
         for i in range(n_random):
@@ -90,8 +93,10 @@ def get_RF_importance(x,
     else:
         return feature_importance, score_test
 
+
 def get_correlation_coefficients(x, y):
     # TODO: kwargs
+    x, y = all_asarray([x, y])
     x, y = remove_bad([x, y])
     return {
         'spearmanr': spearmanr(x, y),
@@ -118,7 +123,6 @@ def get_MI(x,
         x = x.reshape(-1, 1)
     if len(y.shape) == 1:
         y = y.reshape(-1, 1)
-
 
     # TODO: other preprocessing
     # seems qt is not good
