@@ -2,6 +2,8 @@ from functools import partial
 
 import numpy as np
 from scipy.stats import binned_statistic, binned_statistic_2d
+from scipy import interpolate
+from astropy.stats import poisson_conf_interval
 
 from . import weighted_statistic as w
 from .utils import flag_bad
@@ -62,22 +64,8 @@ def binned_statistic_2d_robust(x,
     return statistic_res, x_edge, y_edge, binnumber
 
 
-def weighted_binned_statistic(x, y, w, bins=10, statistic=None, range=None):
-    # TODO: least number in each bin
-    _, edges, bin_index = binned_statistic(x,
-                                           y,
-                                           statistic='count',
-                                           bins=bins,
-                                           range=range)
-
-    return np.array([
-        statistic(y[bin_index == i], w[bin_index == i])
-        for i in _range(1, len(edges))
-    ])
-
-
 def bin_2d(x, y, z, bins=10, range=None, min_data=0):
-    # TODO: support with weights
+    # TODO: support with weights, support more statistic
     Z, x_edges, y_edges, _ = binned_statistic_2d(x,
                                                  y,
                                                  z,
@@ -104,27 +92,45 @@ def bin_1d(x,
            x_statistic=None,
            y_statistic=None,
            bins=10,
+           quantile=False,
            range=None,
-           min_data=0):
+           min_data=1):
     # TODO: count
     '''
     input:
         x_statistic, List[str]:
-            'mean', 'median', 'std', 'std_mean', 'std_median', 'q:x' (x is a number between 0 and 1)
+            'mean', 'median', 'std', 'std_mean', 'std_median', 'std_std', 'q:x' (x is a number between 0 and 1)
         y_statistic, List[str]:
-            'mean', 'median', 'std', 'std_mean', 'std_median', 'q:x' (x is a number between 0 and 1)
+            'mean', 'median', 'std', 'std_mean', 'std_median', 'std_std', 'q:x' (x is a number between 0 and 1)
+        bins, int:
+            The number of bins.
+        quantile, bool:
+            If True, the binning is done in quantiles.
+        
+    notes:
+        ...
     '''
 
     if x_statistic is None:
         x_statistic = []
+    elif isinstance(x_statistic, str):
+        x_statistic = [x_statistic]
+
     if y_statistic is None:
         y_statistic = ['mean']
+    elif isinstance(y_statistic, str):
+        y_statistic = [y_statistic]
 
-    _, edges, bin_index = binned_statistic(x,
-                                           y,
-                                           statistic='count',
-                                           bins=bins,
-                                           range=range)
+    if quantile:
+        if isinstance(bins, int):
+            bins = np.linspace(0, 1, bins + 1)
+        bins = np.quantile(x, bins)
+
+    _, edges, bin_index = binned_statistic_robust(x,
+                                                  y,
+                                                  statistic='count',
+                                                  bins=bins,
+                                                  range=range)
 
     # sourcery skip: dict-comprehension
     statistic = {}
@@ -167,9 +173,125 @@ def get_stat_method(stat_name):
         'median': w.median,
         'std': partial(w.std, ddof=1),
         'std_mean': partial(w.std_mean, ddof=1),
-        'std_median': partial(w.std_median, bandwidth='silverman')
+        'std_median': partial(w.std_median, bandwidth='silverman'),
+        'std_std': partial(w.std_std, ddof=1),
     }
     if stat_name.startswith('q:'):
         return partial(w.quantile, q=float(stat_name[2:]))
     else:
         return mapper[stat_name]
+
+
+def get_epdf(x,
+             bins=10,
+             range=None,
+             weights=None,
+             density=False,
+             interval="frequentist-confidence",
+             sigma=1,
+             background=0,
+             confidence_level=None):
+    """
+    Estimate the empirical probability density function (EPDF) of a dataset.
+
+    Parameters
+    ----------
+    x : array_like
+        Input array of data points.
+    bins : int or sequence of scalars or str, optional
+        If an int, it defines the number of equal-width bins in the range.
+        If a sequence, it defines the bin edges, including the rightmost edge.
+        Default is 10.
+    range : (float, float), optional
+        The lower and upper range of the bins. If not provided, range is simply
+        (x.min(), x.max()). Values outside the range are ignored.
+    weights : array_like, optional
+        An array of weights, of the same shape as `x`. Each value in `x` only contributes its associated weight towards the bin count
+        (instead of 1).
+    density : bool, optional
+        If False, the result contains the number of samples in each bin. If True, the result is the value of the probability
+        density function at the bin, normalized such that the integral over the range is 1.
+        Default is False.
+    interval : str, optional
+        The type of interval to calculate. 
+        Used by astropy.stats.poisson_conf_interval
+        Default is 'frequentist-confidence'.
+    sigma : float, optional
+        Used by astropy.stats.poisson_conf_interval to calculate the interval.
+        Default is 1.
+    background : float, optional
+        Used by astropy.stats.poisson_conf_interval to calculate the interval.
+        Default is 0.
+    confidence_level : float, optional
+        Used by astropy.stats.poisson_conf_interval to calculate the interval.
+        Default is None.
+
+    Returns
+    -------
+    centers : ndarray
+        The bin centers.
+    N : ndarray
+        The values of the histogram.
+    lower : ndarray
+        The lower bounds of the interval.
+    upper : ndarray
+        The upper bounds of the interval.
+    edges : ndarray
+        The bin edges.
+    d_bin : float
+        The width of each bin.
+
+    Notes
+    -----
+    The function uses NumPy's `np.histogram` to compute the histogram and `astropy.stats.poisson_conf_interval` to calculate the confidence
+    interval for the Poisson distribution. 
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> x = np.random.normal(0, 1, 1000)
+    >>> centers, N, lower, upper, edges, d_bin = get_epdf(x, bins=20, density=True)
+    """
+
+    N, edges = np.histogram(x,
+                            bins=bins,
+                            range=range,
+                            weights=weights,
+                            density=False)
+    lower, upper = poisson_conf_interval(N,
+                                         interval=interval,
+                                         sigma=sigma,
+                                         background=background,
+                                         confidence_level=confidence_level)
+    centers = (edges[:-1] + edges[1:]) / 2
+
+    d_bin = edges[1:] - edges[:-1]
+
+    if density:
+        scaler = np.sum(N) * d_bin
+        N = N / scaler
+        lower = lower / scaler
+        upper = upper / scaler
+
+    return centers, N, lower, upper, edges, d_bin
+
+
+def get_epdf_func(x, bins=10, range=None, weights=None, return_data=False):
+    pdf, bin_edges = np.histogram(x,
+                                  bins=bins,
+                                  range=range,
+                                  weights=weights,
+                                  density=True)
+    bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+    bin_centers_ext = np.concatenate(
+        [[bin_centers[0] - (bin_centers[1] - bin_centers[0])], bin_centers,
+         [bin_centers[-1] + (bin_centers[-1] - bin_centers[-2])]])
+    pdf_ext = np.concatenate([[0], pdf, [0]])
+    f = interpolate.interp1d(bin_centers_ext,
+                             pdf_ext,
+                             fill_value='extrapolate',
+                             kind='nearest')
+    if return_data:
+        return f, bin_centers_ext, pdf_ext
+    else:
+        return f
