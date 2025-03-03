@@ -82,6 +82,7 @@ def list_reshape(lst: List, shape) -> List[List]:
     """
     return [lst[i:i + shape[1]] for i in _range(0, len(lst), shape[1])]
 
+
 def set_range_default(x):
     if len(x) == 0:
         return [0, 1]
@@ -89,6 +90,7 @@ def set_range_default(x):
         return [x[0] - 0.5, x[0] + 0.5]
     else:
         return [np.min(x), np.max(x)]
+
 
 def auto_set_range(x, y, _range, auto_p):
     if _range is None:
@@ -125,20 +127,39 @@ def get_kwargs_each(fixed_kwargs, changed_kwargs, shape):
     return kwargs_each
 
 
-def remove_bad(xs):
+def remove_bad(xs: List[np.ndarray], report=False, to_transpose=None) -> List[np.ndarray]:
+
+    if to_transpose is None:
+        to_transpose = []
+
     if xs[0].ndim == 1:
         n_sample = len(xs[0])
     else:
         n_sample = xs[0].shape[0]
     bad = np.zeros(n_sample, dtype=bool)
-    for x in xs:
+
+    for i, x in enumerate(xs):
         if x is None:
             continue
+        if i in to_transpose:
+            x = x.T
         if x.ndim == 1:
             bad |= flag_bad(x)
         else:
             bad |= flag_bad(x).any(axis=1)
-    return [x[~bad] if x is not None else None for x in xs]
+    if report and np.any(bad):
+        print(f"Bad sample detected: {np.where(bad)[0]}")
+
+    res_lst = []
+    for i, x in enumerate(xs):
+        if x is None:
+            res_lst.append(None)
+        elif i in to_transpose:
+            res_lst.append(x.T[~bad].T)
+        else:
+            res_lst.append(x[~bad])
+
+    return res_lst
 
 
 def all_asarray(xs):
@@ -148,11 +169,18 @@ def all_asarray(xs):
 def is_empty(x):
     return len(x) == 0
 
+
 def any_empty(xs):
     return any(is_empty(x) if x is not None else False for x in xs)
 
+
 def all_subsample(xs, idx):
     return [x[idx] if x is not None else None for x in xs]
+
+
+def get_ndim(x):
+    return np.asarray(x).ndim
+
 
 def get_rank(x):
     return np.argsort(np.argsort(x))

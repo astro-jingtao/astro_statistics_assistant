@@ -6,7 +6,7 @@ import numpy as np
 from ..plot_methods import (plot_contour, plot_corner, plot_heatmap,
                             plot_sample_to_point, plot_scatter, plot_trend)
 
-from ..utils import (flag_bad, string_to_list, all_subsample)
+from ..utils import (flag_bad, string_to_list, all_subsample, get_ndim)
 
 from .basic_dataset import BasicDataset
 
@@ -80,7 +80,6 @@ class PlotDataset(BasicDataset):
                         legend_kwargs = {}
                     ax.legend(**legend_kwargs)
                     break
-
 
     def _heatmap(self,
                  x_name,
@@ -239,21 +238,39 @@ class PlotDataset(BasicDataset):
                  legend_kwargs=None,
                  **kwargs):
 
+        def get_err_by_name(name):
+            if name is None:
+                return None
+            elif isinstance(name, (list, tuple)):
+                return list(self.get_data_by_names(name).T)
+            else:
+                return self.get_data_by_name(name)
+
+        def get_err_subsample(err, subsample):
+            if err is None:
+                return None
+            elif isinstance(err, (list, tuple)):
+                return [e[subsample] for e in err]
+            else:
+                return err[subsample]
+
         x = self.get_data_by_name(x_name)
         y = self.get_data_by_name(y_name)
         _z = None if (z_name is None) else self.get_data_by_name(z_name)
-        _xerr = None if (xerr_name
-                         is None) else self.get_data_by_name(xerr_name)
-        _yerr = None if (yerr_name
-                         is None) else self.get_data_by_name(yerr_name)
+
+        _xerr = get_err_by_name(xerr_name)
+        _yerr = get_err_by_name(yerr_name)
+
         _subsample = self.get_subsample(subsample)
         weights = kwargs.pop('weights', None)
         weights = self.get_data_by_name(weights) if isinstance(
             weights, str) else weights
         _weights = weights[_subsample] if weights is not None else None
 
-        _x, _y, _z, _xerr, _yerr = all_subsample([x, y, _z, _xerr, _yerr],
-                                                 _subsample)
+        _x, _y, _z = all_subsample([x, y, _z], _subsample)
+
+        _xerr = get_err_subsample(_xerr, _subsample)
+        _yerr = get_err_subsample(_yerr, _subsample)
 
         plot_scatter(_x,
                      _y,

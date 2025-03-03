@@ -45,6 +45,7 @@ def plot_trend(x,
                errorbar_kwargs=None,
                fbetween_kwargs=None,
                plot_kwargs=None):
+    # TODO: fix range and auto_p
     """
     Plot the trend line between two variables with options for error bars and shadowed intervals.
 
@@ -140,7 +141,8 @@ def plot_trend(x,
         return
 
     # TODO: better auto_set_range
-    range = auto_set_range(x, x, range, auto_p)[0]
+    if (range is None) or range == 'auto':
+        range = auto_set_range(x, x, range, auto_p)[0]
 
     if weights is None:
         weights = np.ones_like(x)
@@ -230,8 +232,10 @@ def plot_trend(x,
         if "linestyle" not in errorbar_kwargs:
             errorbar_kwargs["linestyle"] = ""
 
-        _x_bin, _y_bin = remove_bad([x_bin, _y_bin])
-        ax.errorbar(_x_bin, _y_bin, yerr=yerr, **errorbar_kwargs)
+        is_bad = flag_bad(x_bin) | flag_bad(_y_bin)
+        _x_bin, _y_bin, _yerr = x_bin[~is_bad], _y_bin[~is_bad], np.asarray(
+            yerr)[:, ~is_bad]
+        ax.errorbar(_x_bin, _y_bin, yerr=_yerr, **errorbar_kwargs)
 
     if fbetween_method is not None:
 
@@ -410,7 +414,8 @@ def plot_scatter(x,
     if ax is None:
         ax = plt.gca()
 
-    x, y, z, weights, xerr, yerr = remove_bad([x, y, z, weights, xerr, yerr])
+    x, y, z, weights, xerr, yerr = remove_bad([x, y, z, weights, xerr, yerr],
+                                              to_transpose=[4, 5])
 
     if any_empty([x, y, z, weights, xerr, yerr]):
         warnings.warn(
@@ -429,6 +434,11 @@ def plot_scatter(x,
     _x = x[is_in_range]
     _y = y[is_in_range]
     _weights = weights[is_in_range]
+
+    if has_err:
+        _xerr = xerr.T[is_in_range].T
+        _yerr = yerr.T[is_in_range].T
+    
     if is_z_kde:
         X = np.vstack([_x, _y])
         _z = gaussian_kde(X, bw_method=kde_bw_method, weights=_weights)(X)
@@ -449,8 +459,8 @@ def plot_scatter(x,
             plot_errorbar(_x,
                           _y,
                           c=_z,
-                          xerr=xerr,
-                          yerr=yerr,
+                          xerr=_xerr,
+                          yerr=_yerr,
                           ax=ax,
                           with_colorbar=False,
                           **errorbar_kwargs)
@@ -467,8 +477,8 @@ def plot_scatter(x,
             plot_errorbar(_x,
                           _y,
                           color=color,
-                          xerr=xerr,
-                          yerr=yerr,
+                          xerr=_xerr,
+                          yerr=_yerr,
                           ax=ax,
                           with_colorbar=False,
                           **errorbar_kwargs)
@@ -618,35 +628,35 @@ def plot_corner(xs,
 
     """
     return corner(xs,
-           bins=bins,
-           range=range,
-           weights=weights,
-           color=color,
-           hist_bin_factor=hist_bin_factor,
-           kde_smooth=kde_smooth,
-           kde_smooth1d=kde_smooth1d,
-           smooth=smooth,
-           smooth1d=smooth1d,
-           labels=labels,
-           label_kwargs=label_kwargs,
-           show_titles=show_titles,
-           title_fmt=title_fmt,
-           title_kwargs=title_kwargs,
-           truths=truths,
-           truth_color=truth_color,
-           scale_hist=scale_hist,
-           quantiles=quantiles,
-           verbose=verbose,
-           fig=fig,
-           max_n_ticks=max_n_ticks,
-           top_ticks=top_ticks,
-           use_math_text=use_math_text,
-           reverse=reverse,
-           hist_kwargs=hist_kwargs,
-           plot_add=plot_add,
-           plot_add_1d=plot_add_1d,
-           dpi=dpi,
-           **hist2d_kwargs)
+                  bins=bins,
+                  range=range,
+                  weights=weights,
+                  color=color,
+                  hist_bin_factor=hist_bin_factor,
+                  kde_smooth=kde_smooth,
+                  kde_smooth1d=kde_smooth1d,
+                  smooth=smooth,
+                  smooth1d=smooth1d,
+                  labels=labels,
+                  label_kwargs=label_kwargs,
+                  show_titles=show_titles,
+                  title_fmt=title_fmt,
+                  title_kwargs=title_kwargs,
+                  truths=truths,
+                  truth_color=truth_color,
+                  scale_hist=scale_hist,
+                  quantiles=quantiles,
+                  verbose=verbose,
+                  fig=fig,
+                  max_n_ticks=max_n_ticks,
+                  top_ticks=top_ticks,
+                  use_math_text=use_math_text,
+                  reverse=reverse,
+                  hist_kwargs=hist_kwargs,
+                  plot_add=plot_add,
+                  plot_add_1d=plot_add_1d,
+                  dpi=dpi,
+                  **hist2d_kwargs)
 
 
 def plot_contour(x,
@@ -1056,6 +1066,8 @@ def plot_hist(x,
     """
     if ax is None:
         ax = plt.gca()
+
+    x = remove_bad([x])[0]
 
     centers, N, lower, upper, edges, d_bin = get_epdf(
         x,

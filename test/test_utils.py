@@ -4,7 +4,8 @@ import numpy as np
 import pytest
 
 from asa.utils import (balance_class, is_bool, is_float, is_int, list_reshape,
-                       remove_bad, to_little_endian, auto_set_range)
+                       remove_bad, to_little_endian, auto_set_range,
+                       all_subsample)
 
 
 class TestUtils:
@@ -115,36 +116,6 @@ class TestUtils:
         for i in range(3):
             assert (y_balanced == i).sum() == (y_balanced == 0).sum()
 
-    def test_remove_bad(self):
-        x = np.random.normal(size=100)
-        x[10:14] = np.nan
-        assert np.array_equal(remove_bad([x])[0], x[~np.isnan(x)])
-
-        x = np.random.normal(size=100)
-        x[10:14] = np.inf
-        assert np.array_equal(remove_bad([x])[0], x[~np.isinf(x)])
-
-        x = np.random.normal(size=100)
-        x[10:14] = np.nan
-        y = np.random.normal(size=100)
-        y[80:84] = np.inf
-        _x, _y = remove_bad([x, y])
-        assert np.array_equal(_x, x[~np.isnan(x) & ~np.isinf(y)])
-        assert np.array_equal(_y, y[~np.isnan(x) & ~np.isinf(y)])
-
-        X = np.random.normal(size=(100, 10))
-        X[10:14, 0] = np.nan
-        assert np.array_equal(remove_bad([X])[0], X[~np.isnan(X[:, 0])])
-
-        x = np.random.normal(size=100)
-        y = np.random.normal(size=100)
-        y[80:84] = np.nan
-        z = None
-        _x, _y, _z = remove_bad([x, y, z])
-        assert np.array_equal(_x, x[~np.isnan(y)])
-        assert np.array_equal(_y, y[~np.isnan(y)])
-        assert _z is None
-
     def test_auto_range(self):
         assert np.array_equal(auto_set_range([1, 2, 3], [4, 5, 6], None, None),
                               [[1, 3], [4, 6]])
@@ -187,3 +158,81 @@ class TestToLittle:
         result = to_little_endian(arr)
         # Ensure that the byte order remains unchanged ('|' indicates not applicable)
         assert result.dtype.byteorder == '|'
+
+
+class TestAllSubsample:
+
+    def test_empty_list(self):
+        # Test with an empty list
+        xs = []
+        idx = 0
+        assert all_subsample(xs, idx) == []
+
+    def test_none_element(self):
+        # Test with a list containing None
+        xs = [None]
+        idx = 0
+        assert all_subsample(xs, idx) == [None]
+
+    def test_1d_array(self):
+        # Test with a list containing a 1D numpy array
+        xs = [np.array([1, 2, 3])]
+        idx = [0, 2]
+        assert np.array_equal(all_subsample(xs, idx)[0], np.array([1, 3]))
+
+    def test_2d_array(self):
+        # Test with a list containing a 2D numpy array
+        xs = [np.array([[1, 2], [3, 4], [5, 6]])]
+        idx = [0, 1]
+        expected = [np.array([[1, 2], [3, 4]])]
+        result = all_subsample(xs, idx)
+
+        assert len(result) == 1
+        assert np.allclose(result[0], expected[0])
+
+
+class TestRemoveBad:
+
+    def test_nan(self):
+        x = np.random.normal(size=100)
+        x[10:14] = np.nan
+        assert np.array_equal(remove_bad([x])[0], x[~np.isnan(x)])
+
+    def test_inf(self):
+        x = np.random.normal(size=100)
+        x[10:14] = np.inf
+        assert np.array_equal(remove_bad([x])[0], x[~np.isinf(x)])
+
+    def test_mixed(self):
+        x = np.random.normal(size=100)
+        x[10:14] = np.nan
+        y = np.random.normal(size=100)
+        y[80:84] = np.inf
+        _x, _y = remove_bad([x, y])
+        assert np.array_equal(_x, x[~np.isnan(x) & ~np.isinf(y)])
+        assert np.array_equal(_y, y[~np.isnan(x) & ~np.isinf(y)])
+
+    def test_2d_array(self):
+        X = np.random.normal(size=(100, 10))
+        X[10:14, 0] = np.nan
+        assert np.array_equal(remove_bad([X])[0], X[~np.isnan(X[:, 0])])
+
+    def test_none_element(self):
+        x = np.random.normal(size=100)
+        y = np.random.normal(size=100)
+        y[80:84] = np.nan
+        z = None
+        _x, _y, _z = remove_bad([x, y, z])
+        assert np.array_equal(_x, x[~np.isnan(y)])
+        assert np.array_equal(_y, y[~np.isnan(y)])
+        assert _z is None
+
+    def test_transpose(self):
+        x = np.random.normal(size=100)
+        X = np.random.normal(size=(100, 10))
+        X[10:14, 0] = np.nan
+        X = X.T
+        _x, _X = remove_bad([x, X], to_transpose=[1])
+        is_good = ~np.isnan(X[0, :])
+        assert np.array_equal(_x, x[is_good])
+        assert np.array_equal(_X, X[:, is_good])
