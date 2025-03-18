@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import sys
-from typing import List, Dict
+from typing import List
 
 import numpy as np
 
@@ -127,7 +129,9 @@ def get_kwargs_each(fixed_kwargs, changed_kwargs, shape):
     return kwargs_each
 
 
-def remove_bad(xs: List[np.ndarray], report=False, to_transpose=None) -> List[np.ndarray]:
+def remove_bad(xs: List[np.ndarray],
+               report=False,
+               to_transpose=None) -> List[np.ndarray | None]:
 
     if to_transpose is None:
         to_transpose = []

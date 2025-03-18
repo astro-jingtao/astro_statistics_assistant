@@ -12,6 +12,7 @@ from .loess2d import loess_2d_map
 from .plot_utils import ColorCycler, jitter_data
 from .utils import (all_asarray, any_empty, auto_set_range, flag_bad, is_empty,
                     remove_bad)
+from .correlation_methods import get_correlation_coefficients
 
 # TODO: extract common code
 # - flag and remove bad
@@ -436,9 +437,11 @@ def plot_scatter(x,
     _weights = weights[is_in_range]
 
     if has_err:
-        _xerr = xerr.T[is_in_range].T
-        _yerr = yerr.T[is_in_range].T
-    
+        # can not use _xerr = xerr[:, is_in_range]
+        # because xerr can be a 1-D array
+        _xerr = xerr.T[is_in_range].T if xerr is not None else None
+        _yerr = yerr.T[is_in_range].T if yerr is not None else None
+
     if is_z_kde:
         X = np.vstack([_x, _y])
         _z = gaussian_kde(X, bw_method=kde_bw_method, weights=_weights)(X)
@@ -1060,6 +1063,7 @@ def plot_hist(x,
               background=0,
               confidence_level=None,
               return_data=False,
+              hide_zero_errorbar=False,
               **kwargs):
     """
     Plot the histogram of x
@@ -1080,7 +1084,14 @@ def plot_hist(x,
         background=background,
         confidence_level=confidence_level)
 
-    ax.bar(centers, N, width=d_bin, yerr=[N - lower, upper - N], **kwargs)
+    yerr_low = N - lower
+    yerr_up = upper - N
+
+    if hide_zero_errorbar:
+        yerr_low[yerr_low == 0] = np.nan
+        yerr_up[yerr_up == 0] = np.nan
+
+    ax.bar(centers, N, width=d_bin, yerr=[yerr_low, yerr_up], **kwargs)
 
     if return_data:
         return {
@@ -1180,3 +1191,17 @@ def plot_errorbar(x,
         plt.colorbar(sm, ax=ax)
 
     return ax, sm
+
+
+def plot_volcano(x_lst, y, method='pearsonr', ax=None, **kwargs):
+    if ax is None:
+        ax = plt.gca()
+    corr_dict = {'pvalue': [], 'statistic': []}
+    for x in x_lst:
+        this_res = get_correlation_coefficients(x, y)[method]
+        corr_dict['pvalue'].append(this_res.pvalue)
+        corr_dict['statistic'].append(this_res.statistic)
+    ax.scatter(corr_dict['statistic'], -np.log10(corr_dict['pvalue']),
+               **kwargs)
+    ax.set_xlim(-1, 1)
+    return ax

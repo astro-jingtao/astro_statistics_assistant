@@ -19,7 +19,7 @@ class BasicDataset:
 
     # TODO: auto complete for self['x']
     # TODO: DF to AASTeX tabel. Maybe ref to: https://github.com/liuguanfu1120/Excel-to-AASTeX/blob/main/xlsx-to-AAS-table.ipynb
-    # TODO: subsample for gdn
+    # TODO: better OP_MAP_LABEL with format string.
 
     OP_MAP: Dict[str, Callable] = {'log10': np.log10, 'square': np.square}
     OP_MAP_LABEL: Dict[str, str] = OP_MAP_LABEL
@@ -544,12 +544,13 @@ class BasicDataset:
             subsample = self.index_to_bool_subsample(subsample)
         return subsample
 
+    # TODO: how about the key that do not exist in the dataset?
     def inequality_to_subsample(self,
                                 inequality_string,
                                 debug=False) -> np.ndarray:
         meta_inequality_list = parse_and_or(inequality_string)
         if debug:
-            print(meta_inequality_list)
+            print("meta_inequality_list:", meta_inequality_list)
         all_subsample = []
         j = 0
 
@@ -575,7 +576,7 @@ class BasicDataset:
         command = "".join(meta_inequality_list)
         if debug:
             # print(meta_inequality_list)
-            print(command)
+            print("command:", command)
         return eval(command)  # pylint: disable=eval-used
 
     def inequality_to_subsample_single(self,
@@ -584,10 +585,14 @@ class BasicDataset:
         '''
         Return the subsample according to the inequality string.
         '''
+        if debug:
+            print("inequality_to_subsample_single begin")
+
         inequality_list = parse_inequality(inequality_string)
         subsample = np.ones(self.data.shape[0]).astype(bool)
 
         if debug:
+
             print("inequality_list:", inequality_list)
 
         op_list = ['<=', '>=', '<', '>', '==']
@@ -618,6 +623,9 @@ class BasicDataset:
                     print("command:", command)
 
                 subsample = subsample & eval(command)  # pylint: disable=eval-used
+
+        if debug:
+            print("inequality_to_subsample_single end")
 
         return subsample
 

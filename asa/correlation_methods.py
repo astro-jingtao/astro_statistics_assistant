@@ -20,7 +20,7 @@ from sklearn.inspection import permutation_importance
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import QuantileTransformer
 
-from .utils import remove_bad, all_asarray
+from .utils import all_asarray, remove_bad
 
 USE_EX = True
 
@@ -97,7 +97,7 @@ def get_RF_importance(x,
 def get_correlation_coefficients(x, y):
     # TODO: kwargs
     x, y = all_asarray([x, y])
-    x, y = remove_bad([x, y])
+    x, y = remove_bad([x, y]) # pylint: disable=unbalanced-tuple-unpacking
     return {
         'spearmanr': spearmanr(x, y),
         'pearsonr': pearsonr(x, y),
@@ -116,7 +116,7 @@ def get_MI(x,
            y_scaler_bounds=None,
            da_kwargs=None):
     # remove bad
-    x, y = remove_bad([x, y])
+    x, y = remove_bad([x, y]) # pylint: disable=unbalanced-tuple-unpacking
 
     # at least 2D
     if len(x.shape) == 1:
