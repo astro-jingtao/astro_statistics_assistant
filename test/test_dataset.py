@@ -391,8 +391,7 @@ class TestDataset:
         dataset, x, y, z = gen_dataset()
         with pytest.raises(ValueError) as excinfo:
             dataset.add_col(np.ones((2, 3, 2)), 't')
-            assert "Unexpected ndim of new_cols: 3" in str(
-                excinfo.value)
+            assert "Unexpected ndim of new_cols: 3" in str(excinfo.value)
 
     def test_short_name(self):
         dataset, x, y, z = gen_dataset()
@@ -402,6 +401,22 @@ class TestDataset:
         assert dataset.gln('x') == dataset.get_label_by_name('x')
         assert dataset.glns(['x',
                              'y']) == dataset.get_labels_by_names(['x', 'y'])
+
+    def test_get_subsample(self):
+        dataset, x, y, z = gen_dataset()
+        # should raise error if subsample name not exist
+        with pytest.raises(ValueError) as excinfo:
+            subsample = dataset.get_subsample('dd', debug=False)
+            assert "dd is not a legal name or inequality" in str(excinfo.value)
+
+        with pytest.raises(ValueError) as excinfo:
+            subsample = dataset.get_subsample('dd & [x > 3]', debug=False)
+            assert "dd is not an inequality" in str(excinfo.value)
+        
+        with pytest.raises(NameError) as excinfo:
+            dd = 5
+            subsample = dataset.get_subsample('dd + 5 > 3', debug=True)
+            assert "name 'dd' is not defined" in str(excinfo.value)
 
 
 class TestDatasetInequality:

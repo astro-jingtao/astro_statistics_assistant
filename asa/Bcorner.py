@@ -723,6 +723,8 @@ def hist2d(x,
     # "sigma" contour levels
     if isinstance(levels, int):
         levels = 1.0 - np.exp(-0.5 * np.linspace(0.5, 2.5, levels)**2)
+    else:
+        levels = np.asarray(levels)
 
     # This is the color map for the density plot, over-plotted to indicate the
     # density of the points near the center.
@@ -755,12 +757,12 @@ def hist2d(x,
 
     # Compute the bin centers.
     X1, Y1 = 0.5 * (X[1:] + X[:-1]), 0.5 * (Y[1:] + Y[:-1])
-    """ 
-    If use KDE, we do not need np.histogram2d in principle
-    But no elegent implementation found for that
-    So we still use np.histogram2d
-    If anyone has a good idea, please let me know
-    """
+
+    # If use KDE, we do not need np.histogram2d in principle
+    # But no elegent implementation found for that
+    # So we still use np.histogram2d
+    # If anyone has a good idea, please let me know
+
     if kde_smooth:
         XX, YY = np.meshgrid(X1, Y1, indexing='xy')
         positions = np.vstack([XX.ravel(), YY.ravel()])
@@ -775,17 +777,21 @@ def hist2d(x,
 
     if plot_contours or plot_density:
         # Compute the density levels.
-        Hflat = H.flatten()
-        inds = np.argsort(Hflat)[::-1]
-        Hflat = Hflat[inds]
-        sm = np.cumsum(Hflat)
-        sm /= sm[-1]
-        V = np.empty(len(levels))
-        for i, v0 in enumerate(levels):
-            try:
-                V[i] = Hflat[sm <= v0][-1]
-            except Exception:
-                V[i] = Hflat[0]
+        # Hflat = H.flatten()
+        # inds = np.argsort(Hflat)[::-1]
+        # Hflat = Hflat[inds]
+        # sm = np.cumsum(Hflat)
+        # sm /= sm[-1]
+        # V = np.empty(len(levels))
+        # for i, v0 in enumerate(levels):
+        #     try:
+        #         V[i] = Hflat[sm <= v0][-1]
+        #     except Exception:
+        #         V[i] = Hflat[0]
+
+        V = np.asarray(quantile(H.flatten(), 1 - levels, weights=H.flatten()))
+
+        # make sure no same value in V
         V.sort()
         m = np.diff(V) == 0
         if np.any(m) and not quiet:

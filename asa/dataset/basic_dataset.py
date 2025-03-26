@@ -9,7 +9,7 @@ from ..binning_methods import (binned_statistic_2d_robust,
                                binned_statistic_robust)
 from ..utils import (flag_bad, is_string_or_list_of_string, list_reshape,
                      string_to_list)
-from .inequality_utlis import parse_and_or, parse_inequality, parse_op
+from .inequality_utlis import parse_and_or, parse_inequality, parse_op, is_inequality
 from .labels import OP_MAP_LABEL, _get_label_by_name
 
 _range = range
@@ -251,8 +251,7 @@ class BasicDataset:
         elif new_cols.ndim == 2:
             if new_cols.shape[1] != n_names:
                 raise ValueError(
-                    f"{new_cols.shape[1]} columns, but {n_names} names"
-                )
+                    f"{new_cols.shape[1]} columns, but {n_names} names")
             if new_cols.shape[0] != self.shape[0]:
                 raise ValueError(
                     f"new_cols has {new_cols.shape[0]} rows, but the dataset has {self.shape[0]} rows"
@@ -480,15 +479,16 @@ class BasicDataset:
             return self.ranges.get(name, None)
 
     def get_subsample(
-        self, subsample: Union[None, str, np.ndarray]
-    ) -> np.ndarray:  # sourcery skip: lift-return-into-if
+            self,
+            subsample: Union[None, str, np.ndarray],
+            debug=False) -> np.ndarray:  # sourcery skip: lift-return-into-if
         _subsample: np.ndarray
         # TODO: 0, 1 to bool
 
         if subsample is None:
             _subsample = np.ones(self.data.shape[0]).astype(bool)
         elif isinstance(subsample, str):
-            _subsample = self.string_to_subsample(subsample)
+            _subsample = self.string_to_subsample(subsample, debug=debug)
         # if only include 0 or 1, convert to bool
         # elif np.unique(subsample).tolist() in [[0], [1], [0, 1], [1, 0]]:
         #     _subsample = subsample.astype(bool)
@@ -505,11 +505,14 @@ class BasicDataset:
         _subsample[index] = True
         return _subsample
 
-    def string_to_subsample(self, string) -> np.ndarray:
+    def string_to_subsample(self, string, debug=False) -> np.ndarray:
         # sourcery skip: lift-return-into-if, remove-unnecessary-else
 
         if not self.is_legal_name(string):
-            _subsample = self.inequality_to_subsample(string)
+            if is_inequality(string):
+                _subsample = self.inequality_to_subsample(string, debug=debug)
+            else:
+                raise ValueError(f'{string} is not a legal name or inequality')
         else:
             names_list = list(self.names)
             subsample_idx = names_list.index(string)
@@ -587,6 +590,9 @@ class BasicDataset:
         '''
         if debug:
             print("inequality_to_subsample_single begin")
+
+        if not is_inequality(inequality_string):
+            raise ValueError(f'{inequality_string} is not an inequality')
 
         inequality_list = parse_inequality(inequality_string)
         subsample = np.ones(self.data.shape[0]).astype(bool)

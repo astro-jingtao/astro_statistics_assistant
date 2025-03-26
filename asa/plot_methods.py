@@ -34,6 +34,7 @@ def plot_trend(x,
                y_method='median',
                yerr_method='quantile',
                yerr_args=None,
+               is_x_interval=False,
                fbetween_method=None,
                fbetween_args=None,
                fbetween_bad_policy='omit',
@@ -75,6 +76,9 @@ def plot_trend(x,
     yerr_args : tuple or None, optional
         Arguments for the yerr_method. Default is None.
 
+    is_x_interval: bool, optional
+        If True, plot the interval between x values. Default is False.
+
     fbetween_method : str or None, optional
         Method to calculate filled area between values. Default is None.
 
@@ -86,17 +90,16 @@ def plot_trend(x,
         'omit' will omit the bad values (default behavior for `fill_between` in matplotlib).
         'skip' will skip the bad values.
         'zero' will set the bad values to zero
+        will be ignored if is_x_interval is True.
 
     ax : matplotlib.axes.Axes, optional
         The axes on which to plot. If None, uses the current axes.
 
-    range : array_like, shape (2, 2) or str, optional
-        The range for x and y values. If 'auto', determined automatically.
-        Default is None.
+    range : array_like, shape (2,), optional
+        The range of x values to include in the plot. Default is None.
 
-    auto_p : array_like, shape (2, 2) or str, optional
-        Percentiles for automatic range calculation when range is 'auto'.
-        Default is ([1, 99], [1, 99]).
+    auto_p : float or None, optional
+        The quantile for the automatic range. Default is None.
 
     weights : array_like, shape (nsamples,), optional
         Sample weights. Default is None.
@@ -183,15 +186,15 @@ def plot_trend(x,
     else:
         y_statistic = list(set(y_statistic))
 
-    x_center, _, _, statistic = bin_1d(x,
-                                       y,
-                                       weights=weights,
-                                       x_statistic=x_statistic,
-                                       y_statistic=y_statistic,
-                                       bins=bins,
-                                       quantile=quantile,
-                                       range=range,
-                                       min_data=N_min)
+    x_center, x_edges, _, statistic = bin_1d(x,
+                                             y,
+                                             weights=weights,
+                                             x_statistic=x_statistic,
+                                             y_statistic=y_statistic,
+                                             bins=bins,
+                                             quantile=quantile,
+                                             range=range,
+                                             min_data=N_min)
 
     if x_method == 'center':
         x_bin = x_center
@@ -202,6 +205,12 @@ def plot_trend(x,
         y_bin = None
     else:
         y_bin = statistic[f'y_{y_method}']
+
+    if is_x_interval:
+        return _trend_interval(ax, x_edges, x_bin, y_bin, statistic, color,
+                               plot_kwargs, yerr_method, yerr_args,
+                               errorbar_kwargs, fbetween_method, fbetween_args,
+                               fbetween_kwargs)
 
     if y_bin is not None:
 
@@ -254,7 +263,7 @@ def plot_trend(x,
         _fbt_low, _fbt_up = fbetween
 
         if fbetween_bad_policy == 'omit':
-            _x_bin, _fbt_low, _fbt_up = x_bin, _fbt_low, _fbt_up
+            _x_bin = x_bin
         elif fbetween_bad_policy == 'skip':
             _x_bin, _fbt_low, _fbt_up = remove_bad([x_bin, _fbt_low, _fbt_up])
         elif fbetween_bad_policy == 'zero':
@@ -303,6 +312,8 @@ def _trend_get_y_statistic(method, args):
 
 def _trend_get_lower_upper(y_bin, method, args, statistic):
 
+    # y_bin is needed for TREND_STD_ALIASES, TREND_STD_MEAN_ALIASES, and TREMD_STD_MEDIAN_ALIASES
+
     if method in TREND_QUANTILE_ALIASES:
         q_low, q_up = args
         return statistic[f'y_q:{q_low}'], statistic[f'y_q:{q_up}']
@@ -322,6 +333,84 @@ def _trend_get_lower_upper(y_bin, method, args, statistic):
         return y_bin - _d, y_bin + _d
     else:
         raise ValueError(f"{method} is not supported")
+
+
+def _trend_interval(ax, x_edges, x_bin, y_bin, statistic, color, plot_kwargs,
+                    yerr_method, yerr_args, errorbar_kwargs, fbetween_method,
+                    fbetween_args, fbetween_kwargs):
+
+    if y_bin is not None:
+
+        if plot_kwargs is None:
+            plot_kwargs = {}
+
+        if "color" not in plot_kwargs:
+            plot_kwargs["color"] = color
+
+        for i, this_y in enumerate(y_bin):
+            if not (np.isnan(this_y) or np.isinf(this_y)):
+                x_min, x_max = x_edges[i:i + 2]
+                ax.plot([x_min, x_max], [this_y, this_y], **plot_kwargs)
+
+    if yerr_method is not None:
+
+        if y_bin is not None:
+
+            yerr_low, yerr_up = _trend_get_lower_upper(y_bin, yerr_method,
+                                                       yerr_args, statistic)
+
+            if x_bin is None:
+                x_bin = (x_edges[:-1] + x_edges[1:]) / 2
+            xerr = (x_bin - x_edges[:-1], x_edges[1:] - x_bin)
+            yerr = (y_bin - yerr_low, yerr_up - y_bin)
+
+            if errorbar_kwargs is None:
+                errorbar_kwargs = {}
+
+            if "color" not in errorbar_kwargs:
+                errorbar_kwargs["color"] = color
+            if "linestyle" not in errorbar_kwargs:
+                errorbar_kwargs["linestyle"] = ""
+
+            for i, (this_x, this_y, this_xerr_low, this_xerr_up, this_yerr_low,
+                    this_yerr_up) in enumerate(zip(x_bin, y_bin, *xerr,
+                                                   *yerr)):
+                if ~np.any(
+                        flag_bad([
+                            this_x, this_y, this_xerr_low, this_xerr_up,
+                            this_yerr_low, this_yerr_up
+                        ])):
+                    # print(this_xerr_low, this_xerr_up)
+                    ax.errorbar(this_x,
+                                this_y,
+                                xerr=[[this_xerr_low], [this_xerr_up]],
+                                yerr=[[this_yerr_low], [this_yerr_up]],
+                                **errorbar_kwargs)
+        else:
+            print(
+                "Warning: if is_x_interval is True, y_method is required if yerr_method is set, but y_method is None, skip the yerr plot."
+            )
+
+    if fbetween_method is not None:
+
+        fbetween = _trend_get_lower_upper(y_bin, fbetween_method,
+                                          fbetween_args, statistic)
+
+        if fbetween_kwargs is None:
+            fbetween_kwargs = {}
+
+        if "color" not in fbetween_kwargs:
+            fbetween_kwargs["color"] = color
+        if "alpha" not in fbetween_kwargs:
+            fbetween_kwargs["alpha"] = 0.2
+
+        _fbt_low, _fbt_up = fbetween
+
+        for i, (this_low, this_up) in enumerate(zip(_fbt_low, _fbt_up)):
+            if not np.any(flag_bad([this_low, this_up])):
+                x_min, x_max = x_edges[i:i + 2]
+                ax.fill_between([x_min, x_max], this_low, this_up,
+                                **fbetween_kwargs)
 
 
 scatter_color_cycle = ColorCycler()
@@ -371,7 +460,9 @@ def plot_scatter(x,
             print("Warning: is_z_kde is ignored when z is provided")
 
     if has_z and color is not None:
-        print("Warning: c is ignored when z is provided and is_z_kde is True")
+        print(
+            "Warning: color is ignored when z is provided and is_z_kde is True"
+        )
 
     if color is None:
         # load color from plt.rcParams
@@ -475,7 +566,8 @@ def plot_scatter(x,
         _x = jitter_data(_x, x_jitter)
         _y = jitter_data(_y, y_jitter)
 
-        ax.scatter(_x, _y, c=color, label=label, **kwargs)
+        # c = color makes facecolors='none' does not work
+        ax.scatter(_x, _y, color=color, label=label, **kwargs)
         if has_err:
             plot_errorbar(_x,
                           _y,
@@ -1205,3 +1297,23 @@ def plot_volcano(x_lst, y, method='pearsonr', ax=None, **kwargs):
                **kwargs)
     ax.set_xlim(-1, 1)
     return ax
+
+
+def ax_fill_between(y1, y2, ax=None, **kwargs):
+
+    if ax is None:
+        ax = plt.gca()
+
+    this_xlim = ax.get_xlim()
+    ax.fill_between(this_xlim, [y1, y1], [y2, y2], **kwargs)
+    ax.set_xlim(this_xlim)
+
+
+def ax_fill_betweenx(x1, x2, ax=None, **kwargs):
+
+    if ax is None:
+        ax = plt.gca()
+
+    this_ylim = ax.get_ylim()
+    ax.fill_betweenx(this_ylim, [x1, x1], [x2, x2], **kwargs)
+    ax.set_ylim(this_ylim)
