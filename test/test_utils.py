@@ -5,7 +5,7 @@ import pytest
 
 from asa.utils import (balance_class, is_bool, is_float, is_int, list_reshape,
                        remove_bad, to_little_endian, auto_set_range,
-                       all_subsample)
+                       all_subsample, deduplicate)
 
 
 class TestUtils:
@@ -236,3 +236,20 @@ class TestRemoveBad:
         is_good = ~np.isnan(X[0, :])
         assert np.array_equal(_x, x[is_good])
         assert np.array_equal(_X, X[:, is_good])
+
+
+class TestDeduplicate:
+
+    def test_small_difference(self):
+        x_dedup = deduplicate([1., 1., 1., 1.05], max_dx=0.1)
+        assert np.all(np.diff(x_dedup) > 0)
+
+    def test_all_same(self):
+        x_dedup = deduplicate([1., 1., 1., 1.], max_dx=0.1)
+        assert np.all(np.diff(x_dedup) > 0)
+
+    def test_not_sorted(self):
+        with pytest.raises(ValueError) as excinfo:
+            deduplicate([1., 2., 1., 3.])
+            assert 'Input array must be sorted' in str(excinfo.value)
+            

@@ -10,7 +10,7 @@ import numpy as np
 from matplotlib.colors import LinearSegmentedColormap, colorConverter
 from matplotlib.ticker import MaxNLocator, NullLocator, ScalarFormatter
 
-from .utils import auto_set_range, flag_bad
+from .utils import auto_set_range, flag_bad, deduplicate
 
 try:
     from scipy.ndimage import gaussian_filter
@@ -789,6 +789,8 @@ def hist2d(x,
         #     except Exception:
         #         V[i] = Hflat[0]
 
+        # TODO: fix the stuck if we have more than 2 same V
+
         V = np.asarray(quantile(H.flatten(), 1 - levels, weights=H.flatten()))
 
         # make sure no same value in V
@@ -796,10 +798,13 @@ def hist2d(x,
         m = np.diff(V) == 0
         if np.any(m) and not quiet:
             logging.warning("Too few points to create valid contours")
-        while np.any(m):
-            V[np.where(m)[0][0]] *= 1.0 - 1e-4
-            m = np.diff(V) == 0
-        V.sort()
+        
+        V = deduplicate(V, max_dx=np.max(H) - np.min(H))
+
+        # while np.any(m):
+        #     V[np.where(m)[0][0]] *= 1.0 - 1e-4
+        #     m = np.diff(V) == 0
+        # V.sort()
 
         # Extend the array for the sake of the contours at the plot edges.
         H2 = H.min() + np.zeros((H.shape[0] + 4, H.shape[1] + 4))

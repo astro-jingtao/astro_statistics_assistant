@@ -206,3 +206,31 @@ def to_little_endian(x):
     else:
         # Otherwise, convert to little-endian.
         return x.byteswap().newbyteorder('little')
+
+
+def deduplicate(x_o, max_dx=0.1):
+
+    # raise if not sorted
+    if not np.all(np.diff(x_o) >= 0):
+        raise ValueError("Input array must be sorted")
+
+    x = np.asarray(x_o)
+    x_last = x[0]
+    i_last = 0
+
+    for i, xi in enumerate(x):
+        if xi == x_last:
+            continue
+        elif i - i_last > 1:
+            dx = min(max_dx, xi - x_last)
+            delta = dx * np.arange(1, i - i_last) / (i - i_last)
+            x[i_last + 1:i] += delta
+        x_last = xi
+        i_last = i
+
+    if i_last < len(x) - 1:
+        dx = max_dx
+        delta = dx * np.arange(1, len(x) - i_last) / (len(x) - i_last)
+        x[i_last + 1:] += delta
+
+    return x

@@ -1138,7 +1138,7 @@ def imshow(X, ax=None, mask=None, **kwargs):
         X = X.astype(float).copy()
         X[~mask] = np.nan
 
-    ax.imshow(X, **kwargs)
+    return ax.imshow(X, **kwargs)
 
 
 # TODO: consider P(p|k, N)
