@@ -925,7 +925,7 @@ def plot_heatmap(x,
 
         # Maybe use pcolormesh for high performance?
         # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.pcolormesh.html#differences-pcolor-pcolormesh
-        ax.pcolor(x_edges, y_edges, Z, **pcolor_kwargs)
+        return ax.pcolor(x_edges, y_edges, Z, **pcolor_kwargs)
 
     elif map_kind == 'contour':
 

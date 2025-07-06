@@ -84,6 +84,8 @@ def get_RF_importance(x,
                                                     X_test,
                                                     y_test,
                                                     n_repeats=10)
+    else:
+        raise ValueError('importance_type must be either gini or permutation.')
 
     score_train = rf.score(X_train, y_train)
     score_test = rf.score(X_test, y_test)

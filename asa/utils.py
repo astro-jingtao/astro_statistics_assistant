@@ -13,8 +13,8 @@ def flag_bad(x):
     It returns True if the input is NaN or Inf, and False otherwise
 
     :param x: the input data
-    :return: A boolean array of the same shape as x, where True indicates that the corresponding element
-    of x is NaN or +/-inf.
+    :return: A boolean array of the same shape as x, where True indicates
+    that the corresponding element of x is NaN or +/-inf.
     """
     return np.isnan(x) | np.isinf(x)
 
@@ -41,7 +41,8 @@ def balance_class(x, y, random_state=None):
 
 def is_float(x):
     '''
-    check if x is kind of float, such as built-in float, np.float32, np.float64, np.ndarray of float, list of float...
+    check if x is kind of float, such as built-in float, 
+    np.float32, np.float64, np.ndarray of float, list of float...
     '''
     return (isinstance(x, (float, np.float32, np.float64))
             or (isinstance(x, np.ndarray) and x.dtype.kind == 'f')
@@ -50,7 +51,8 @@ def is_float(x):
 
 def is_int(x):
     '''
-    check if x is kind of int, such as built-in int, np.int32, np.int64, np.ndarray of int, list of int...
+    check if x is kind of int, such as built-in int, 
+    np.int32, np.int64, np.ndarray of int, list of int...
     '''
     return (isinstance(x, (int, np.int32, np.int64))
             or (isinstance(x, np.ndarray) and x.dtype.kind == 'i')
