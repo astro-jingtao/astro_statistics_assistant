@@ -196,7 +196,7 @@ def corner(xs,
     if range is None:
         if "extents" in hist2d_kwargs:
             logging.warning("Deprecated keyword argument 'extents'. "
-                         "Use 'range' instead.")
+                            "Use 'range' instead.")
             range = hist2d_kwargs.pop("extents")
         else:
             range = [[x[x_good].min(), x[x_good].max()]
@@ -575,10 +575,14 @@ def quantile(x, q, weights=None, N_min=2):
     if np.any(q < 0.0) or np.any(q > 1.0):
         raise ValueError("Quantiles must be between 0 and 1")
 
+    # There are many methods to calculate percentile
+    # https://numpy.org/doc/stable/reference/generated/numpy.percentile.htm
+    # TODO: The better way is to use the native weights support of np.percentil in numpy 2.0.0
+    # But now we use the following method
     if weights is None:
         return np.percentile(x, list(100.0 * q))
     else:
-        weights = np.atleast_1d(weights)
+        weights = np.atleast_1d(weights).astype(float)
         if len(x) != len(weights):
             raise ValueError("Dimension mismatch: len(weights) != len(x)")
         idx = np.argsort(x)

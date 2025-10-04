@@ -18,6 +18,8 @@ _range = range
 class BasicDataset:
 
     # TODO: auto complete for self['x']
+    # TODO: DF to AASTeX tabel. Maybe ref to: https://github.com/liuguanfu1120/Excel-to-AASTeX/blob/main/xlsx-to-AAS-table.ipynb
+    # TODO: subsample for gdn
 
     OP_MAP: Dict[str, Callable] = {'log10': np.log10, 'square': np.square}
     OP_MAP_LABEL: Dict[str, str] = OP_MAP_LABEL
@@ -39,8 +41,10 @@ class BasicDataset:
                  units: Union[Dict, List, None] = None,
                  snr_postfix='snr',
                  err_postfix='err') -> None:
+
+        # self.names: np.ndarray
+
         self.data: pd.DataFrame
-        self.names: np.ndarray
         self.labels: Dict[str, str]
         self.ranges: Dict[str, Union[List, None]]
         self.unit_labels: Dict[str, str]
@@ -61,8 +65,6 @@ class BasicDataset:
                 names = [f'x{i}' for i in range(data.shape[1])]
                 self.data.columns = names
 
-        self.names = np.asarray(names, dtype='<U64')
-
         self.labels = self._init_parameter(labels, 'labels', names)
         self.ranges = self._init_parameter(ranges, 'ranges', names)
         self.unit_labels = self._init_parameter(unit_labels, 'unit_labels',
@@ -79,6 +81,14 @@ class BasicDataset:
             return {}
         else:
             raise ValueError(f'{parameter_name} should be dict or list')
+
+    @property
+    def names(self):
+        return np.asarray(self.data.columns, dtype='<U64')
+
+    @property
+    def shape(self):
+        return self.data.shape
 
     def __iter__(self):
         return iter(self.data.columns)
@@ -171,7 +181,7 @@ class BasicDataset:
 
     def __str__(self) -> str:
         summary_string = "" + 'Dataset summary:\n'
-        summary_string += f'  Data shape: {self.data.shape}\n'
+        summary_string += f'  Data shape: {self.shape}\n'
         summary_string += f'  Names: {self.names}\n'
         label_lst = [self.labels.get(name, name) for name in self.names]
         summary_string += f'  Labels: {label_lst}\n'
@@ -184,10 +194,7 @@ class BasicDataset:
         self.unit_labels.update(unit_labels_dict)
 
     def update_names(self, names_dict) -> None:
-        for name in names_dict:
-            idx = self.names == name
-            self.names[idx] = names_dict[name]
-            self.data.rename(columns={name: names_dict[name]}, inplace=True)
+        self.data.rename(columns=names_dict, inplace=True)
 
     def update_ranges(self, ranges_dict) -> None:
         self.ranges.update(ranges_dict)
@@ -196,7 +203,7 @@ class BasicDataset:
         self.units.update(units_dict)
 
     def summary(self, stats_info=False) -> None:
-        print(self.__str__())
+        print(str(self))
         if stats_info:
             print(self.data.describe())
 
@@ -237,9 +244,7 @@ class BasicDataset:
             new_cols = new_cols[:, np.newaxis]
 
         # self.data is a DataFrame
-        self.data = pd.concat(
-            [self.data, pd.DataFrame(new_cols, columns=new_names)], axis=1)
-        self.names = np.asarray(list(self.names) + list(new_names))
+        self.data.loc[:, new_names] = new_cols
 
     def add_row(self, new_rows) -> None:
         self.data = pd.concat(
@@ -264,7 +269,6 @@ class BasicDataset:
     def _del_col(self, key):
         # self.data in a Pandas DataFrame
         self.data.drop(self.names[key], axis=1, inplace=True)
-        self.names = np.delete(self.names, key, axis=0)
 
     def del_row(self, nrow) -> None:
         self.data.drop(nrow, axis=0, inplace=True)
@@ -294,27 +298,32 @@ class BasicDataset:
         else:
             return name in self.names
 
-    def get_data_by_name(self, name, with_unit=False) -> np.ndarray:
+    def get_data_by_name(self,
+                         name,
+                         subsample=None,
+                         with_unit=False) -> np.ndarray:
         '''
         with_unit:
             If True, return the data with unit
             If False, return the data without unit
             Ignored when get snr, err, or with operation
         '''
-        # TODO: support subsample
         # sourcery skip: remove-unnecessary-else, swap-if-else-branches
         if name.endswith(f'_{self.snr_postfix}'):
-            return self.get_snr_by_name(name)
+            data = self.get_snr_by_name(name)
         elif name.endswith(f'_{self.err_postfix}'):
-            return self.get_err_by_name(name)
-        if '@' in name:
+            data = self.get_err_by_name(name)
+        elif '@' in name:
             op, name = name.split('@')
-            return self.OP_MAP[op](self[name].to_numpy())
+            data = self.OP_MAP[op](self[name].to_numpy())
         else:
             if with_unit:
-                return self[name].to_numpy() * self.get_unit_by_name(name)
+                data = self[name].to_numpy() * self.get_unit_by_name(name)
             else:
-                return self[name].to_numpy()
+                data = self[name].to_numpy()
+
+        subsample = self.get_subsample(subsample)
+        return data[subsample]
 
     gdn = get_data_by_name
 
@@ -337,11 +346,11 @@ class BasicDataset:
         else:
             # sourcery skip: remove-unnecessary-else
             # if in names, just return it
-            data_name = self.remove_snr_postfix(snr_name)
             if snr_name in self.names:
                 return self[snr_name].to_numpy()
             # if not in names, try to find the snr
             else:
+                data_name = self.remove_snr_postfix(snr_name)
                 err_name = f'{data_name}_{self.err_postfix}'
                 if err_name in self.names:
                     return np.abs(self[data_name].to_numpy()
@@ -375,8 +384,10 @@ class BasicDataset:
                         f'can not find err_name: {err_name}, nor snr_name: {snr_name}'
                     )
 
-    def get_data_by_names(self, names) -> np.ndarray:
-        return np.asarray([self.get_data_by_name(name) for name in names]).T
+    def get_data_by_names(self, names, subsample=None) -> np.ndarray:
+        return np.asarray([
+            self.get_data_by_name(name, subsample=subsample) for name in names
+        ]).T
 
     gdns = get_data_by_names
 
@@ -520,7 +531,7 @@ class BasicDataset:
                     ']': ')'
                 }[meta_inequality_list[i]]
                 continue
-            if meta_inequality_list[i] not in ['&', '|']:
+            if meta_inequality_list[i] not in ['~', '&', '|']:
                 if self.is_legal_name(meta_inequality_list[i]):
                     meta_inequality_list[
                         i] = f'self.string_to_subsample("{meta_inequality_list[i]}")'
@@ -537,7 +548,6 @@ class BasicDataset:
             print(command)
         return eval(command)  # pylint: disable=eval-used
 
-    # TODO: support ~
     def inequality_to_subsample_single(self,
                                        inequality_string,
                                        debug=False) -> np.ndarray:
@@ -560,7 +570,7 @@ class BasicDataset:
             if string not in op_list:
                 this_inequality = inequality_list[i:i + 3]
                 # enumerate [a, >, b]
-                # pylint: disable-next=consider-using-enumerat
+                # pylint: disable-next=consider-using-enumerate
                 for j in range(len(this_inequality)):
                     all_element_in_this = parse_op(this_inequality[j])
                     if debug:
@@ -588,7 +598,7 @@ class BasicDataset:
         title_ndigits=2,
         return_edges=False,
         list_shape=None,
-        range=None,
+        range=None, # pylint: disable=redefined-builtin
         subsample=None
     ) -> Union[tuple[List, List], tuple[List, List, Union[List, np.ndarray]]]:
         """

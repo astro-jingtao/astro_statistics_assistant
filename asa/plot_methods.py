@@ -1,98 +1,129 @@
 import warnings
-from functools import partial
 
 import matplotlib.pyplot as plt
 import numpy as np
-from astropy.stats import poisson_conf_interval
-from scipy.stats import binned_statistic
+from matplotlib.scale import scale_factory
+from scipy.stats import gaussian_kde
 from statsmodels.stats.weightstats import DescrStatsW
 
 from .Bcorner import corner, hist2d, quantile
-from .binning_methods import bin_1d, bin_2d
+from .binning_methods import bin_1d, bin_2d, get_epdf
 from .loess2d import loess_2d_map
-from .utils import auto_set_range, flag_bad, is_empty
+from .plot_utils import ColorCycler, jitter_data
+from .utils import (all_asarray, any_empty, auto_set_range, flag_bad, is_empty,
+                    remove_bad)
 
 # TODO: extract common code
 # - flag and remove bad
 
-# TODO: skind: quantile or sigma
+TREND_QUANTILE_ALIASES = ['q', 'quantile', 'percentile']
+TREND_STD_ALIASES = ['s', 'sigma', 'std']
+TREND_IQR_ALIASES = ['iqr', 'interquartile']
+TREND_STD_MEAN_ALIASES = ['std_mean']
+TREMD_STD_MEDIAN_ALIASES = ['std_median']
+
+trend_color_cycle = ColorCycler()
+
+
 def plot_trend(x,
                y,
                bins=20,
-               ytype='median',
+               quantile=False,
+               x_method='center',
+               y_method='median',
+               yerr_method='quantile',
+               yerr_args=None,
+               fbetween_method=None,
+               fbetween_args=None,
+               fbetween_bad_policy='omit',
                ax=None,
                range=None,
                auto_p=None,
                weights=None,
                N_min=1,
-               lowlim=25,
-               uplim=75,
-               fkind=None,
-               prop_kwargs=None,
+               color=None,
                errorbar_kwargs=None,
                fbetween_kwargs=None,
-               plot_kwargs=None):  # sourcery skip: avoid-builtin-shadow
+               plot_kwargs=None):
     """
-    Make a plot to show the trend between x and y
+    Plot the trend line between two variables with options for error bars and shadowed intervals.
 
     Parameters
-    -----------------
-    x : array_like[nsamples,]                                     
-        The samples.                             
-                                                           
-    y : array_like[nsamples,]                            
-        The samples.
-                                                                     
-    ytype: Character string or float
-        The y value used to plot
-        The available character string is "median" or 'mean'. If ytype is set as "median", the trend is shown by the median value of y as a function of x.
-        if ytype is float, y_value = np.percentile(y, ytype)
-        default: "median"
+    ----------
+    x : array_like, shape (nsamples,)
+        The independent variable samples.
 
+    y : array_like, shape (nsamples,)
+        The dependent variable samples.
 
-    range: array_like[2, 2] or string ([x_min, x_max], [y_min, y_max]), 
-        if not 'auto', the range is automatically determined according to quantile specified by auto_p, if 'auto'                                                        
-        default: 'auto'
+    bins : int, optional
+        The number of bins to use for the histogram. Default is 20.
 
-    auto_p: array_like[2, 2] or string
-       Used to generate range if range == 'auto'
-       x_min = np.percentile(x, auto_p[0][0])
-       x_max = np.percentile(x, auto_p[0][1])
-       y_min = np.percentile(y, auto_p[1][0])
-       y_max = np.percentile(y, auto_p[1][1])
-       default: ([1, 99], [1, 99])
+    x_method : str, optional
+        Method to calculate statistics for x bins. Options are:
+        'center' (default), 'mean', 'median'.
 
-    weights: Optional[array_like[nsamples,]] 
-        An optional weight corresponding to each sample.
+    y_method : str or None, optional
+        Method to calculate statistics for y values. Options are:
+        'mean', 'median'. Default is 'median'.
 
-    N_min: int
-        The minimum number of samples in each bin to plot the trend
-    
-    ax : matplotlib.Axes
-        A axes instance on which to add the line.
+    yerr_method : str or None, optional
+        Method for calculating the y error values. Default is 'quantile'.
 
-    ifscatter: whether to plot scatter
+    yerr_args : tuple or None, optional
+        Arguments for the yerr_method. Default is None.
 
-    uplim (%): The upper limit of the scatter, in [0, 100]
+    fbetween_method : str or None, optional
+        Method to calculate filled area between values. Default is None.
 
-    lowlim (%): The lower limit of the scatter, in [0, 100]
+    fbetween_args : tuple or None, optional
+        Arguments for fbetween_method. Default is None.
 
-    fkind: which ways to show the scatter, "errorbar" and "fbetween" are available
-        
-    plot_kwargs: function in ``matplotlib``
+    fbetween_bad_policy : str, optional
+        Policy for handling bad values in fbetween_method. Default is 'omit'.
+        'omit' will omit the bad values (default behavior for `fill_between` in matplotlib).
+        'skip' will skip the bad values.
+        'zero' will set the bad values to zero
 
+    ax : matplotlib.axes.Axes, optional
+        The axes on which to plot. If None, uses the current axes.
 
-    prop_kwargs: dict (to be added)
-        The extra property used to constrain the x, y, data
-        props : array_like[nsamples,]                                     
-            The samples with size same as x/y.                             
-        pmax : the maximum value of props
-        pmin : the minimum value of props
-        
-    plot_scatter_kwargs: dict
-        to describe the scatter
-        function in ``matplotlib``
-    
+    range : array_like, shape (2, 2) or str, optional
+        The range for x and y values. If 'auto', determined automatically.
+        Default is None.
+
+    auto_p : array_like, shape (2, 2) or str, optional
+        Percentiles for automatic range calculation when range is 'auto'.
+        Default is ([1, 99], [1, 99]).
+
+    weights : array_like, shape (nsamples,), optional
+        Sample weights. Default is None.
+
+    N_min : int, optional
+        Minimum number of samples in each bin to display the trend. Default is 1.
+
+    color : str or None, optional
+        The color for the trend line. If None, uses the next color from the cycle.
+
+    errorbar_kwargs : dict, optional
+        Additional keyword arguments for the error bar plotting.
+
+    fbetween_kwargs : dict, optional
+        Additional keyword arguments for the fill between plotting.
+
+    plot_kwargs : dict, optional
+        Additional keyword arguments for the line plotting.
+
+    Returns
+    -------
+    None
+        The function will display the plot but does not return any values.
+
+    Notes
+    -----
+    - The function accepts various methods for statistical calculation which allows flexibility in visualization.
+    - Ensure that the lengths of x, y, and weights are consistent.
+    - Custom plotting parameters can be passed through the respective kwargs.
     """
 
     if ax is None:
@@ -101,159 +132,348 @@ def plot_trend(x,
     if plot_kwargs is None:
         plot_kwargs = {}
 
-    if prop_kwargs is not None:
-        props = prop_kwargs["props"]
-        pmin = prop_kwargs.get("pmin", min(props))
-        pmax = prop_kwargs.get("pmax", max(props))
-        prop_index = (props >= pmin) & (props <= pmax)
-        x = x[prop_index]
-        y = y[prop_index]
-        # print(np.shape(x), np.shape(y))
+    x, y, weights = remove_bad([x, y, weights])
 
-    ifscatter = fkind is not None
-
-    bad = flag_bad(x) | flag_bad(y)
-    x = x[~bad]
-    y = y[~bad]
-
-    if is_empty(x) or is_empty(y):
+    if is_empty([x, y, weights]):
         warnings.warn(
-            "The x or y are empty after remove bad data skip the plot")
+            "The x or y are empty after remove bad data, skip the plot")
         return
 
-    range = auto_set_range(x, y, range, auto_p)
-
-    xrange = range[0]
-    yrange = range[1]
+    # TODO: better auto_set_range
+    range = auto_set_range(x, x, range, auto_p)[0]
 
     if weights is None:
         weights = np.ones_like(x)
 
-    is_y_in_range = (y >= yrange[0]) & (y <= yrange[1])
+    if color is None:
+        color = trend_color_cycle.next(ax=ax)
 
-    y_statistic = [ytype]
-    if ifscatter:
-        low_name = f"q:{lowlim/100:.2f}"
-        up_name = f"q:{uplim/100:.2f}"
-
-        y_statistic.append(low_name)
-        y_statistic.append(up_name)
-
-    _, _, _, statistic = bin_1d(x[is_y_in_range],
-                                y[is_y_in_range],
-                                weights=weights[is_y_in_range],
-                                x_statistic=['median'],
-                                y_statistic=y_statistic,
-                                bins=bins,
-                                range=xrange,
-                                min_data=N_min)
-
-
-    # TODO: support the error of median or mean
-    if ifscatter:
-        if fkind == "errorbar":
-            if errorbar_kwargs is None:
-                errorbar_kwargs = {}
-                errorbar_kwargs["color"] = plot_kwargs.get("color")
-                errorbar_kwargs["label"] = plot_kwargs.get("label")
-            else:
-                if "color" not in errorbar_kwargs:
-                    errorbar_kwargs["color"] = plot_kwargs.get("color")
-                if "label" not in errorbar_kwargs:
-                    errorbar_kwargs["label"] = plot_kwargs.get("label")
-            # TODO: deal with ytype is mean and yerr is negative
-            ax.errorbar(
-                statistic['x_median'],
-                statistic[f'y_{ytype}'],
-                yerr=(statistic[f'y_{ytype}'] - statistic[f'y_{low_name}'],
-                      statistic[f'y_{up_name}'] - statistic[f'y_{ytype}']),
-                **errorbar_kwargs)
-        elif fkind == "fbetween":
-            ax.plot(statistic['x_median'], statistic[f'y_{ytype}'],
-                    **plot_kwargs)
-            if fbetween_kwargs is None:
-                fbetween_kwargs = {}
-                fbetween_kwargs["color"] = plot_kwargs.get("color", "r")
-                fbetween_kwargs["alpha"] = 0.2
-            else:
-                if "color" not in fbetween_kwargs:
-                    fbetween_kwargs["color"] = plot_kwargs.get("color", "r")
-                if "alpha" not in fbetween_kwargs:
-                    fbetween_kwargs["alpha"] = 0.2
-            ax.fill_between(statistic['x_median'], statistic[f'y_{up_name}'],
-                            statistic[f'y_{low_name}'], **fbetween_kwargs)
+    if x_method == 'center':
+        x_statistic = None
+    elif x_method == 'median':
+        x_statistic = ['median']
+    elif x_method == 'mean':
+        x_statistic = ['mean']
     else:
-        ax.plot(statistic['x_median'], statistic[f'y_{ytype}'], **plot_kwargs)
+        raise ValueError(f"x_type {x_method} is not supported")
+
+    if y_method is None:
+        if yerr_method in TREND_STD_ALIASES:
+            raise ValueError(
+                "yerr_method is set as sigma, but y_method is None")
+        y_statistic = []
+    elif y_method == 'median':
+        y_statistic = ['median']
+    elif y_method == 'mean':
+        y_statistic = ['mean']
+    else:
+        raise ValueError(f"y_type {y_method} is not supported")
+
+    y_statistic_err, yerr_args = _trend_get_y_statistic(yerr_method, yerr_args)
+    y_statistic_fbetween, fbetween_args = _trend_get_y_statistic(
+        fbetween_method, fbetween_args)
+
+    y_statistic = y_statistic + y_statistic_err + y_statistic_fbetween
+
+    if len(y_statistic) == 0:
+        y_statistic = None
+    else:
+        y_statistic = list(set(y_statistic))
+
+    x_center, _, _, statistic = bin_1d(x,
+                                       y,
+                                       weights=weights,
+                                       x_statistic=x_statistic,
+                                       y_statistic=y_statistic,
+                                       bins=bins,
+                                       quantile=quantile,
+                                       range=range,
+                                       min_data=N_min)
+
+    if x_method == 'center':
+        x_bin = x_center
+    else:
+        x_bin = statistic[f'x_{x_method}']
+
+    if y_method is None:
+        y_bin = None
+    else:
+        y_bin = statistic[f'y_{y_method}']
+
+    if y_bin is not None:
+
+        if plot_kwargs is None:
+            plot_kwargs = {}
+
+        if "color" not in plot_kwargs:
+            plot_kwargs["color"] = color
+
+        _x_bin, _y_bin = remove_bad([x_bin, y_bin])
+        ax.plot(_x_bin, _y_bin, **plot_kwargs)
+
+    if yerr_method is not None:
+
+        yerr_low, yerr_up = _trend_get_lower_upper(y_bin, yerr_method,
+                                                   yerr_args, statistic)
+        if y_bin is None:
+            _y_bin = (yerr_low + yerr_up) / 2  # a fake value
+        else:
+            _y_bin = y_bin
+
+        yerr = (_y_bin - yerr_low, yerr_up - _y_bin)
+
+        if errorbar_kwargs is None:
+            errorbar_kwargs = {}
+
+        if "color" not in errorbar_kwargs:
+            errorbar_kwargs["color"] = color
+        if "linestyle" not in errorbar_kwargs:
+            errorbar_kwargs["linestyle"] = ""
+
+        _x_bin, _y_bin = remove_bad([x_bin, _y_bin])
+        ax.errorbar(_x_bin, _y_bin, yerr=yerr, **errorbar_kwargs)
+
+    if fbetween_method is not None:
+
+        fbetween = _trend_get_lower_upper(y_bin, fbetween_method,
+                                          fbetween_args, statistic)
+
+        if fbetween_kwargs is None:
+            fbetween_kwargs = {}
+
+        if "color" not in fbetween_kwargs:
+            fbetween_kwargs["color"] = color
+        if "alpha" not in fbetween_kwargs:
+            fbetween_kwargs["alpha"] = 0.2
+
+        _fbt_low, _fbt_up = fbetween
+
+        if fbetween_bad_policy == 'omit':
+            _x_bin, _fbt_low, _fbt_up = x_bin, _fbt_low, _fbt_up
+        elif fbetween_bad_policy == 'skip':
+            _x_bin, _fbt_low, _fbt_up = remove_bad([x_bin, _fbt_low, _fbt_up])
+        elif fbetween_bad_policy == 'zero':
+            is_bad = flag_bad(_fbt_low) | flag_bad(_fbt_up)
+            _fbt_low[is_bad] = 0
+            _fbt_up[is_bad] = 0
+        else:
+            raise ValueError(f"{fbetween_bad_policy} is not supported")
+
+        ax.fill_between(_x_bin, _fbt_low, _fbt_up, **fbetween_kwargs)
+
+
+def _trend_get_y_statistic(method, args):
+    y_statistic = []
+
+    if method is None:
+        return y_statistic, args
+
+    if method in TREND_QUANTILE_ALIASES:
+        if args is None:
+            args = (0.16, 0.84)
+        q_low, q_up = args
+        y_statistic += [f'q:{q_low}', f'q:{q_up}']
+    elif method in TREND_STD_ALIASES:
+        if args is None:
+            args = 1
+        y_statistic += ['std']
+    elif method in TREND_IQR_ALIASES:
+        if args is None:
+            args = (0.25, 0.75, 1.5)
+        q_low, q_up, _ = args
+        y_statistic += [f'q:{q_low}', f'q:{q_up}']
+    elif method in TREND_STD_MEAN_ALIASES:
+        if args is None:
+            args = 1
+        y_statistic += ['std_mean']
+    elif method in TREMD_STD_MEDIAN_ALIASES:
+        if args is None:
+            args = 1
+        y_statistic += ['std_median']
+    else:
+        raise ValueError(f"{method} is not supported")
+
+    return y_statistic, args
+
+
+def _trend_get_lower_upper(y_bin, method, args, statistic):
+
+    if method in TREND_QUANTILE_ALIASES:
+        q_low, q_up = args
+        return statistic[f'y_q:{q_low}'], statistic[f'y_q:{q_up}']
+    elif method in TREND_STD_ALIASES:
+        _d = args * statistic['y_std']
+        return y_bin - _d, y_bin + _d
+    elif method in TREND_IQR_ALIASES:
+        q_low, q_up, m = args
+        _low, _up = statistic[f'y_q:{q_low}'], statistic[f'y_q:{q_up}']
+        iqr = _up - _low
+        return q_low - m * iqr, q_up + m * iqr
+    elif method in TREND_STD_MEAN_ALIASES:
+        _d = args * statistic['y_std_mean']
+        return y_bin - _d, y_bin + _d
+    elif method in TREMD_STD_MEDIAN_ALIASES:
+        _d = args * statistic['y_std_median']
+        return y_bin - _d, y_bin + _d
+    else:
+        raise ValueError(f"{method} is not supported")
+
+
+scatter_color_cycle = ColorCycler()
 
 
 def plot_scatter(x,
                  y,
+                 xerr=None,
+                 yerr=None,
                  z=None,
+                 color=None,
+                 with_colorbar=True,
                  ax=None,
                  range=None,
                  auto_p=None,
                  weights=None,
+                 x_jitter=None,
+                 y_jitter=None,
                  label=None,
-                 ifsmooth=False,
-                 smooth_kwargs=None,
-                 plot_kwargs=None):  # sourcery skip: avoid-builtin-shadow
+                 is_z_kde=False,
+                 kde_bw_method=None,
+                 if_smooth_z=False,
+                 n_smooth=0.5,
+                 linestyle=None,
+                 line_kwargs=None,
+                 errorbar_kwargs=None,
+                 **kwargs):
+    '''
+    KDE for z is inspired by the plots of Yunning Zhao (赵韵宁).
+    '''
 
+    # TODO: line ordered
     # TODO: z_range, automatically adjust?
-    # usage of xnew / ynew
 
-    hasz = True
+    x, y, z, weights, xerr, yerr = all_asarray([x, y, z, weights, xerr, yerr])
+
+    has_z = False
+
     if z is None:
-        z = np.ones(len(x))
-        hasz = False
+        z = np.ones_like(x)
+        if is_z_kde:
+            has_z = True
+    else:
+        has_z = True
+        if is_z_kde:
+            is_z_kde = False
+            print("Warning: is_z_kde is ignored when z is provided")
+
+    if has_z and color is not None:
+        print("Warning: c is ignored when z is provided and is_z_kde is True")
+
+    if color is None:
+        # load color from plt.rcParams
+        color = scatter_color_cycle.next(ax=ax)
 
     if weights is None:
         weights = np.ones_like(x)
 
-    bad = flag_bad(x) | flag_bad(y) | flag_bad(z)
-    x = x[~bad]
-    y = y[~bad]
-    z = z[~bad]
+    if (xerr is not None) or (yerr is not None):
+        has_err = True
+        if errorbar_kwargs is None:
+            errorbar_kwargs = {}
+        if "fmt" not in errorbar_kwargs:
+            errorbar_kwargs["fmt"] = ""
+        if "linestyle" not in errorbar_kwargs:
+            errorbar_kwargs["linestyle"] = ""
+        if "cmap" not in errorbar_kwargs:
+            errorbar_kwargs["cmap"] = kwargs.get("cmap", None)
+        if "norm" not in errorbar_kwargs:
+            errorbar_kwargs["norm"] = kwargs.get("norm", None)
+        if "alpha" not in errorbar_kwargs:
+            errorbar_kwargs["alpha"] = kwargs.get("alpha", None)
+        if "vmin" not in errorbar_kwargs:
+            errorbar_kwargs["vmin"] = kwargs.get("vmin", None)
+        if "vmax" not in errorbar_kwargs:
+            errorbar_kwargs["vmax"] = kwargs.get("vmax", None)
+    else:
+        has_err = False
 
-    if is_empty(x) or is_empty(y) or is_empty(z):
+    if linestyle is not None:
+        has_line = True
+        if line_kwargs is None:
+            line_kwargs = {}
+        if "fmt" not in errorbar_kwargs:
+            errorbar_kwargs["fmt"] = ""
+        if "alpha" not in errorbar_kwargs:
+            errorbar_kwargs["alpha"] = kwargs.get("alpha", None)
+    else:
+        has_line = False
+
+    if ax is None:
+        ax = plt.gca()
+
+    x, y, z, weights, xerr, yerr = remove_bad([x, y, z, weights, xerr, yerr])
+
+    if any_empty([x, y, z, weights, xerr, yerr]):
         warnings.warn(
-            "The x, y or z are empty after remove bad data skip the plot")
+            "x, y, z, weights, xerr, or yerr are empty after remove bad data, skip the plot"
+        )
         return
 
     range = auto_set_range(x, y, range, auto_p)
 
-    xrange = range[0]
-    yrange = range[1]
+    x_range = range[0]
+    y_range = range[1]
 
-    is_in_range = (x >= xrange[0]) & (x <= xrange[1]) & (y >= yrange[0]) & (
-        y <= yrange[1])
+    is_in_range = (x >= x_range[0]) & (x <= x_range[1]) & (y >= y_range[0]) & (
+        y <= y_range[1])
 
-    if plot_kwargs is None:
-        plot_kwargs = {}
-
-    if ifsmooth:
-        if smooth_kwargs is None:
-            smooth_kwargs = {}
-        nsmooth = smooth_kwargs.get("nsmooth", 0.5)
-        xnew = x[is_in_range].copy()
-        ynew = y[is_in_range].copy()
-        znew = loess_2d_map(x[is_in_range], y[is_in_range], z[is_in_range],
-                            xnew, ynew, weights[is_in_range], nsmooth)
-        sc = ax.scatter(xnew, ynew, c=znew, label=label, **plot_kwargs)
-        plt.colorbar(sc, ax=ax)
-
+    _x = x[is_in_range]
+    _y = y[is_in_range]
+    _weights = weights[is_in_range]
+    if is_z_kde:
+        X = np.vstack([_x, _y])
+        _z = gaussian_kde(X, bw_method=kde_bw_method, weights=_weights)(X)
     else:
-        if hasz:
-            sc = ax.scatter(x[is_in_range],
-                            y[is_in_range],
-                            c=z[is_in_range],
-                            label=label,
-                            **plot_kwargs)
+        _z = z[is_in_range]
+
+    if has_z:
+        if if_smooth_z:
+            _z = loess_2d_map(_x, _y, _z, _x, _y, _weights, n_smooth)
+
+        _x = jitter_data(_x, x_jitter)
+        _y = jitter_data(_y, y_jitter)
+
+        sc = ax.scatter(_x, _y, c=_z, label=label, **kwargs)
+        if with_colorbar:
             plt.colorbar(sc, ax=ax)
-        else:
-            ax.scatter(x[is_in_range],
-                       y[is_in_range],
-                       label=label,
-                       **plot_kwargs)
+        if has_err:
+            plot_errorbar(_x,
+                          _y,
+                          c=_z,
+                          xerr=xerr,
+                          yerr=yerr,
+                          ax=ax,
+                          with_colorbar=False,
+                          **errorbar_kwargs)
+        if has_line:
+            # TODO: somehow derive the color from _z and cmap?
+            ax.plot(_x, _y, linestyle=linestyle, color=color, **line_kwargs)
+    else:
+
+        _x = jitter_data(_x, x_jitter)
+        _y = jitter_data(_y, y_jitter)
+
+        ax.scatter(_x, _y, c=color, label=label, **kwargs)
+        if has_err:
+            plot_errorbar(_x,
+                          _y,
+                          color=color,
+                          xerr=xerr,
+                          yerr=yerr,
+                          ax=ax,
+                          with_colorbar=False,
+                          **errorbar_kwargs)
+        if has_line:
+            ax.plot(_x, _y, linestyle=linestyle, color=color, **line_kwargs)
 
 
 def plot_corner(xs,
@@ -775,6 +995,7 @@ def imshow(X, ax=None, mask=None, **kwargs):
 
     ax.imshow(X, **kwargs)
 
+
 # TODO: consider P(p|k, N)
 def plot_hist(x,
               bins=10,
@@ -794,31 +1015,18 @@ def plot_hist(x,
     if ax is None:
         ax = plt.gca()
 
-    N, edges = np.histogram(x,
-                            bins=bins,
-                            range=range,
-                            weights=weights,
-                            density=False)
-    lower, upper = poisson_conf_interval(N,
-                                         interval=interval,
-                                         sigma=sigma,
-                                         background=background,
-                                         confidence_level=confidence_level)
-    centers = (edges[:-1] + edges[1:]) / 2
+    centers, N, lower, upper, edges, d_bin = get_epdf(
+        x,
+        bins=bins,
+        range=range,
+        weights=weights,
+        density=density,
+        interval=interval,
+        sigma=sigma,
+        background=background,
+        confidence_level=confidence_level)
 
-    d_bin = edges[1:] - edges[:-1]
-
-    if density:
-        scaler = np.sum(N) * d_bin
-        N = N / scaler
-        lower = lower / scaler
-        upper = upper / scaler
-
-    ax.bar(centers,
-           N,
-           width=d_bin,
-           yerr=[N - lower, upper - N],
-           **kwargs)
+    ax.bar(centers, N, width=d_bin, yerr=[N - lower, upper - N], **kwargs)
 
     if return_data:
         return {
@@ -828,3 +1036,94 @@ def plot_hist(x,
             "lower": lower,
             "upper": upper
         }
+
+
+# TODO: support give ax
+# TODO: single err for all
+# TODO: different upper and lower err
+def plot_errorbar(x,
+                  y,
+                  xerr=None,
+                  yerr=None,
+                  c=None,
+                  ax=None,
+                  vmin=None,
+                  vmax=None,
+                  cmap=None,
+                  norm=None,
+                  with_colorbar=False,
+                  **kwargs):
+    """
+    Plot error bars with color coding based on a third variable 'c'.
+
+    Parameters:
+        x : array-like
+            The x-coordinates.
+        y : array-like
+            The y-coordinates.
+        c : array-like, optional
+            The values used to color the error bars. If None, the error bars will not be color-coded.
+        cmap : str or Colormap, optional
+            The colormap used to map the 'c' values to colors. Default is 'viridis'.
+        with_colorbar : bool, optional
+            Whether to display a colorbar next to the plot. Default is False.
+        **kwargs : additional arguments
+            Additional arguments to pass to plt.errorbar.
+
+    Returns:
+        matplotlib.cm.ScalarMappable
+            A ScalarMappable object that can be used to create a colorbar.
+    """
+
+    x = np.asarray(x)
+    y = np.asarray(y)
+
+    if ax is None:
+        ax = plt.gca()
+
+    if c is None:
+        return ax.errorbar(x, y, xerr=xerr, yerr=yerr, **kwargs)
+    else:
+        c = np.asarray(c)
+
+    # Create a colormap object
+    if cmap is None:
+        # get default colormap from rcParams
+        cmap = plt.rcParams['image.cmap']
+
+    if isinstance(cmap, str):
+        cmap = plt.colormaps.get_cmap(cmap)
+
+    if vmin is None:
+        vmin = c.min()
+    if vmax is None:
+        vmax = c.max()
+
+    if norm is None:
+        norm = plt.Normalize(vmin=vmin, vmax=vmax)
+    elif isinstance(norm, str):
+        norm = scale_factory(norm, c, vmin=vmin, vmax=vmax)
+
+    colors = cmap(norm(c))
+
+    # Plotting with error bars and color coding
+    if xerr is None:
+        xerr = [None] * len(x)
+    if yerr is None:
+        yerr = [None] * len(y)
+
+    for i in range(len(x)):  # pylint: disable=consider-using-enumerate
+        ax.errorbar(x[i],
+                    y[i],
+                    xerr=xerr[i],
+                    yerr=yerr[i],
+                    color=colors[i],
+                    **kwargs)
+
+    # Create a ScalarMappable and an axes-level colorbar
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+
+    if with_colorbar:
+        plt.colorbar(sm, ax=ax)
+
+    return ax, sm

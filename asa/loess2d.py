@@ -1,3 +1,7 @@
+'''
+Modified from the original implementation of Kai Wang (王凯, https://www.kosmoswalker.com/).
+'''
+
 import numpy as np
 from scipy.spatial import KDTree
 
@@ -74,6 +78,8 @@ def loess_2d_map(x,
         the x-coordinates of the points at which to interpolate
     ynew
         The y-coordinates of the points at which to interpolate
+    w
+        The weight for each data point. If None, all points are weighted equally.
     n_nbr
         The number of neighbors to use for the LOESS fit.
         # of neighbors = (n_nbr >= 1) ? int(n_nbr) : int(n_nbr * N)

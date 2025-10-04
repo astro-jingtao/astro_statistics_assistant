@@ -13,8 +13,8 @@ def parse_op(string):
 
 
 def parse_and_or(string):
-    # &, |, [, ]
-    splitted = re.split(r'(&|\||\[|\])', string.replace(" ", ""))
+    # ~, &, |, [, ]
+    splitted = re.split(r'(~|&|\||\[|\])', string.replace(" ", ""))
     return [s for s in splitted if s != '']
 
 
