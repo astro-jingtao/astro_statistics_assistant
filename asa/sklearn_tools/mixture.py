@@ -108,8 +108,8 @@ class GaussianMixture(SK_GaussianMixture):
         if self.covariance_type != "full":
             raise NotImplementedError("Only Support full covariance type")
 
-        n_samples, n_features = X_obs.shape
-        n_components = self.n_components
+        n_samples, _ = X_obs.shape
+        n_components, n_features = self.means_.shape
 
         post_covariances_ = np.zeros(
             (n_samples, n_components, n_features, n_features))
@@ -127,7 +127,7 @@ class GaussianMixture(SK_GaussianMixture):
                                                          AT_Sigmainv_A)
                 post_means_[i, j] = post_covariances_[i, j] @ (
                     self.precisions_[j] @ self.means_[j] +  # type: ignore
-                    A.T @ AT_Sigmainv @ this_X_obs)
+                    AT_Sigmainv @ this_X_obs)
 
             GMM_post = self.new_GMM(post_covariances_[i], post_means_[i])
             GMM_lst.append(FrozenEstimator(GMM_post))
