@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import sys
-from typing import List, Dict
+from typing import List
 
 import numpy as np
 
@@ -11,8 +13,8 @@ def flag_bad(x):
     It returns True if the input is NaN or Inf, and False otherwise
 
     :param x: the input data
-    :return: A boolean array of the same shape as x, where True indicates that the corresponding element
-    of x is NaN or +/-inf.
+    :return: A boolean array of the same shape as x, where True indicates
+    that the corresponding element of x is NaN or +/-inf.
     """
     return np.isnan(x) | np.isinf(x)
 
@@ -39,7 +41,8 @@ def balance_class(x, y, random_state=None):
 
 def is_float(x):
     '''
-    check if x is kind of float, such as built-in float, np.float32, np.float64, np.ndarray of float, list of float...
+    check if x is kind of float, such as built-in float, 
+    np.float32, np.float64, np.ndarray of float, list of float...
     '''
     return (isinstance(x, (float, np.float32, np.float64))
             or (isinstance(x, np.ndarray) and x.dtype.kind == 'f')
@@ -48,7 +51,8 @@ def is_float(x):
 
 def is_int(x):
     '''
-    check if x is kind of int, such as built-in int, np.int32, np.int64, np.ndarray of int, list of int...
+    check if x is kind of int, such as built-in int, 
+    np.int32, np.int64, np.ndarray of int, list of int...
     '''
     return (isinstance(x, (int, np.int32, np.int64))
             or (isinstance(x, np.ndarray) and x.dtype.kind == 'i')
@@ -83,9 +87,18 @@ def list_reshape(lst: List, shape) -> List[List]:
     return [lst[i:i + shape[1]] for i in _range(0, len(lst), shape[1])]
 
 
+def set_range_default(x):
+    if len(x) == 0:
+        return [0, 1]
+    elif len(x) == 1:
+        return [x[0] - 0.5, x[0] + 0.5]
+    else:
+        return [np.min(x), np.max(x)]
+
+
 def auto_set_range(x, y, _range, auto_p):
     if _range is None:
-        _range = [[x.min(), x.max()], [y.min(), y.max()]]
+        _range = [set_range_default(x), set_range_default(y)]
     elif _range == 'auto':
         if auto_p is None:
             auto_p = ([1, 99], [1, 99])
@@ -118,20 +131,41 @@ def get_kwargs_each(fixed_kwargs, changed_kwargs, shape):
     return kwargs_each
 
 
-def remove_bad(xs):
+def remove_bad(xs: List[np.ndarray],
+               report=False,
+               to_transpose=None) -> List[np.ndarray | None]:
+
+    if to_transpose is None:
+        to_transpose = []
+
     if xs[0].ndim == 1:
         n_sample = len(xs[0])
     else:
         n_sample = xs[0].shape[0]
     bad = np.zeros(n_sample, dtype=bool)
-    for x in xs:
+
+    for i, x in enumerate(xs):
         if x is None:
             continue
+        if i in to_transpose:
+            x = x.T
         if x.ndim == 1:
             bad |= flag_bad(x)
         else:
             bad |= flag_bad(x).any(axis=1)
-    return [x[~bad] if x is not None else None for x in xs]
+    if report and np.any(bad):
+        print(f"Bad sample detected: {np.where(bad)[0]}")
+
+    res_lst = []
+    for i, x in enumerate(xs):
+        if x is None:
+            res_lst.append(None)
+        elif i in to_transpose:
+            res_lst.append(x.T[~bad].T)
+        else:
+            res_lst.append(x[~bad])
+
+    return res_lst
 
 
 def all_asarray(xs):
@@ -141,11 +175,18 @@ def all_asarray(xs):
 def is_empty(x):
     return len(x) == 0
 
+
 def any_empty(xs):
     return any(is_empty(x) if x is not None else False for x in xs)
 
+
 def all_subsample(xs, idx):
     return [x[idx] if x is not None else None for x in xs]
+
+
+def get_ndim(x):
+    return np.asarray(x).ndim
+
 
 def get_rank(x):
     return np.argsort(np.argsort(x))
@@ -167,3 +208,31 @@ def to_little_endian(x):
     else:
         # Otherwise, convert to little-endian.
         return x.byteswap().newbyteorder('little')
+
+
+def deduplicate(x_o, max_dx=0.1):
+
+    # raise if not sorted
+    if not np.all(np.diff(x_o) >= 0):
+        raise ValueError("Input array must be sorted")
+
+    x = np.asarray(x_o)
+    x_last = x[0]
+    i_last = 0
+
+    for i, xi in enumerate(x):
+        if xi == x_last:
+            continue
+        elif i - i_last > 1:
+            dx = min(max_dx, xi - x_last)
+            delta = dx * np.arange(1, i - i_last) / (i - i_last)
+            x[i_last + 1:i] += delta
+        x_last = xi
+        i_last = i
+
+    if i_last < len(x) - 1:
+        dx = max_dx
+        delta = dx * np.arange(1, len(x) - i_last) / (len(x) - i_last)
+        x[i_last + 1:] += delta
+
+    return x

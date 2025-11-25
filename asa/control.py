@@ -22,15 +22,21 @@ def control_1d(x_A,
     mode : str, optional
         The matching mode. Can be 'match_P' or 'match_N'. Default is 'match_P'.
     dist_target : array_like, optional
-        1D array representing the target distribution. If None, the target distribution will be computed based on `auto_method`. Default is None.
+        1D array representing the target distribution. 
+        If None, the target distribution will be computed based on `auto_method`. Default is None.
     edges : array_like, optional
-        1D array representing the edges of bins. If None, the edges will be computed based on `auto_method`. Default is None.
+        1D array representing the edges of bins. 
+        If None, the edges will be computed based on `auto_method`. Default is None.
     auto_method : str, optional
-        Method to compute `dist_target` and `edges` if they are None. Can be 'intersection', 'x_A', or 'x_B'. Default is 'intersection'.
+        Method to compute `dist_target` and `edges` if they are None. 
+        Can be 'intersection', 'x_A', or 'x_B'. Default is 'intersection'.
     bins : int, optional
         Number of bins, only used when both `dist_target` and `edges` are None. Default is 10.
     _range : list of 2 elements, optional
-        Range for computing `dist_target` and `edges`, only used when both `dist_target` and `edges` are None. If None, the range will be computed based on the minimum and maximum of the union set of `x_A` and `x_B`. Default is None.
+        Range for computing `dist_target` and `edges`, only used when both `dist_target` 
+        and `edges` are None. 
+        If None, the range will be computed based on the minimum and maximum of the union
+        set of `x_A` and `x_B`. Default is None.
     P_atol : float, optional
         Absolute tolerance for 'match_P' mode, default is 0, only used when mode is 'match_P'.
     P_rtol : float, optional
@@ -48,12 +54,14 @@ def control_1d(x_A,
     Raises
     ------
     ValueError
-        If `dist_target` and `edges` are not both None or not None, or if `mode` is not 'match_N' or 'match_P'.
+        If `dist_target` and `edges` are not both None or not None, 
+        or if `mode` is not 'match_N' or 'match_P'.
 
     Notes
     -----
     If `dist_target` and `edges` are both None, the `dist_target` will be determined automatically.
-    When auto_method is 'intersection', the target distribution will be the intersection of the distributions of `x_A` and `x_B`.
+    When auto_method is 'intersection', the target distribution will be the intersection of the
+    distributions of `x_A` and `x_B`.
     When auto_method is 'x_A', the target distribution will be the distribution of `x_A`.
     When auto_method is 'x_B', the target distribution will be the distribution of `x_B`.
 
@@ -103,6 +111,7 @@ def control_1d(x_A,
         raise ValueError('dist_target and edges must be both None or not None')
 
     if mode == 'match_P':
+        # print(dist_target, edges)
         A_index = match_P_1d(x_A,
                              dist_target,
                              edges,
@@ -131,6 +140,9 @@ def match_P_1d(x_parent, P_target, edges, P_atol=0, P_rtol=0):
 
     N_parent, _ = np.histogram(x_parent, bins=edges, density=False)
 
+    if np.any((N_parent == 0) & (P_target != 0)):
+        raise ValueError('x_parent have no data in non-zero bins of P_target')
+
     # N_max = N_parent / P_target
     # N_max[P_target == 0] = x_parent.size
 
@@ -139,9 +151,6 @@ def match_P_1d(x_parent, P_target, edges, P_atol=0, P_rtol=0):
     for this_N_max in np.arange(x_parent.size, 0, -1):
         N_can_have = np.min((N_parent, this_N_max * P_target),
                             axis=0).astype(int)
-        if N_can_have.sum() <= 0:
-            raise ValueError(
-                'x_parent have no data in non-zero bins of P_target')
         P_can_have = N_can_have / N_can_have.sum()
         if np.allclose(P_can_have, P_target, atol=P_atol, rtol=P_rtol):
             N_dist_match = N_can_have
@@ -170,13 +179,16 @@ def match_N_1d(x_parent, N_target, edges):
     index = np.arange(x_parent.size)
     index_selected = []
     for i in range(1, edges.size):
-        in_this_bin = (bin_index == i)
+        in_this_bin = (bin_index == i)  # pylint: disable=superfluous-parens
 
         if N_target[i - 1] > in_this_bin.sum():
             right_backet = ']' if i == edges.size else ')'
             raise ValueError(
-                f'x_parent have less data ({in_this_bin.sum()}) in the bin [{edges[i - 1]}, {edges[i]}{right_backet} than N_target requires ({N_target[i - 1]})'
+                f'x_parent have less data ({in_this_bin.sum()}) in the bin '
+                f'[{edges[i - 1]}, {edges[i]}{right_backet} than N_target '
+                f'requires ({N_target[i - 1]})'
             )
+
 
         if in_this_bin.any():
             # print(index[in_this_bin], N_target[i - 1], i)
@@ -187,3 +199,17 @@ def match_N_1d(x_parent, N_target, edges):
 
     # print(index_selected)
     return np.array(index_selected)
+
+
+#TODO: to implement
+def match_N_nd(x_parent, N_target, edges):
+
+    x_parent = np.asarray(x_parent)
+    N_target = np.asarray(N_target)
+
+    if N_target.dtype.kind != 'i':
+        raise ValueError('N_target should contain only integers')
+
+    edges = np.asarray(edges)
+
+    ...

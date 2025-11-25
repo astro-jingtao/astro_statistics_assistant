@@ -9,7 +9,8 @@ from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 
 USE_EX = True
 
-def get_RF_CVS(x,
+
+def get_RF_CVS(X,
                y,
                problem_type,
                CVS_method='grid',
@@ -22,14 +23,17 @@ def get_RF_CVS(x,
 
     if problem_type == 'classification':
         if EX_AVAILABLE and USE_EX:
-            rf = RandomForestClassifier_ex()
+            rf = RandomForestClassifier_ex()  # type: ignore
         else:
             rf = RandomForestClassifier()
     elif problem_type == 'regression':
         if EX_AVAILABLE and USE_EX:
-            rf = RandomForestRegressor_ex()
+            rf = RandomForestRegressor_ex()  # type: ignore
         else:
             rf = RandomForestRegressor()
+    else:
+        raise ValueError('problem_type must be "classification" or '
+                         '"regression".')
 
     # predined param_grid
     if param_grid == 'basic':
@@ -48,7 +52,9 @@ def get_RF_CVS(x,
             raise ValueError('param_distributions must be provided if '
                              'CVS_method is "random".')
         cvs = RandomizedSearchCV(rf, param_distributions, **CVS_kwargs)
+    else:
+        raise ValueError('CVS_method must be "grid" or "random".')
 
-    cvs.fit(x, y)
+    cvs.fit(X, y)
 
     return cvs
