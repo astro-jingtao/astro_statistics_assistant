@@ -9,7 +9,7 @@ from ..binning_methods import (binned_statistic_2d_robust,
                                binned_statistic_robust)
 from ..utils import (flag_bad, is_string_or_list_of_string, list_reshape,
                      string_to_list)
-from .inequality_utlis import parse_and_or, parse_inequality, parse_op
+from .inequality_utlis import parse_and_or, parse_inequality, parse_op, is_inequality
 from .labels import OP_MAP_LABEL, _get_label_by_name
 
 _range = range
@@ -19,7 +19,7 @@ class BasicDataset:
 
     # TODO: auto complete for self['x']
     # TODO: DF to AASTeX tabel. Maybe ref to: https://github.com/liuguanfu1120/Excel-to-AASTeX/blob/main/xlsx-to-AAS-table.ipynb
-    # TODO: subsample for gdn
+    # TODO: better OP_MAP_LABEL with format string.
 
     OP_MAP: Dict[str, Callable] = {'log10': np.log10, 'square': np.square}
     OP_MAP_LABEL: Dict[str, str] = OP_MAP_LABEL
@@ -210,9 +210,11 @@ class BasicDataset:
     def add_col(self, new_cols, new_names) -> None:
         '''
         Input:
-            new_cols: array-like except list or tuple, (n_samples, n_features) or (n_samples,); 
-                      if list or tuple, (n_features, ), each element should be array-like
-            new_names: str or list of str
+            new_cols: scaler, array-like, or list (or tuple) of scaler or array-like
+                      if list (or tuple) with length (n_features, ), each element should be array-like. If want to add multiple columns with unit, can only use this 
+                      format.
+                      
+            new_names: str or list of str, (n_features, )
 
         Add new columns to the dataset
         '''
@@ -223,27 +225,54 @@ class BasicDataset:
             if name in self.names:
                 raise ValueError(f'{name} already exists in the dataset')
 
+        n_names = len(new_names)
+
         if isinstance(new_cols, list) or isinstance(new_cols, tuple):
-            for nc, nn in zip(new_cols, new_names):
-                self.add_col(nc, nn)
-            return
+            if n_names == len(new_cols):
+                for nc, nn in zip(new_cols, new_names):
+                    self.add_col(nc, nn)
+                return
 
-        # check units if new_cols is 1d
-        d_new_cols = np.asarray(new_cols).ndim
-        if d_new_cols == 1:
-            if isinstance(new_cols, u.Quantity):
-                if new_names[0] in self.units:
-                    new_cols = new_cols.to(self.units[new_names[0]]).value
-                else:
-                    raise ValueError(
-                        f'You are trying to add a column with unit, but the unit of {new_names[0]} is not specified in the dataset. Please specify the unit of {new_names[0]} first.'
-                    )
+        # should use asanyarray to handle Quantity
+        new_cols = np.asanyarray(new_cols)
 
-        new_cols = np.asarray(new_cols)
-        if new_cols.ndim == 1:
-            new_cols = new_cols[:, np.newaxis]
+        if new_cols.ndim == 0:
+            if n_names > 1:
+                raise ValueError(
+                    f"new_cols can only be a scalar if new_names has length 1, but got {n_names} \n consider use list (or tuple) of scaler instead."
+                )
+        elif new_cols.ndim == 1:
+            if n_names > 1:
+                raise ValueError(f"1 columns, but {n_names} names")
+            if new_cols.shape[0] != self.shape[0]:
+                raise ValueError(
+                    f"new_cols has length {new_cols.shape[0]}, but the dataset has {self.shape[0]} rows"
+                )
+        elif new_cols.ndim == 2:
+            if new_cols.shape[1] != n_names:
+                raise ValueError(
+                    f"{new_cols.shape[1]} columns, but {n_names} names")
+            if new_cols.shape[0] != self.shape[0]:
+                raise ValueError(
+                    f"new_cols has {new_cols.shape[0]} rows, but the dataset has {self.shape[0]} rows"
+                )
+        else:
+            raise ValueError(f"Unexpected ndim of new_cols: {new_cols.ndim}")
 
-        # self.data is a DataFrame
+        if isinstance(new_cols, u.Quantity):
+
+            if len(new_names) > 1:
+                raise ValueError(
+                    'Multiple columns with unit can only be added by using new_cols as a list (or tuple) of array-like or scaler with length (n_features, )'
+                )
+
+            if new_names[0] in self.units:
+                new_cols = new_cols.to(self.units[new_names[0]]).value
+            else:
+                raise ValueError(
+                    f'You are trying to add a column with unit, but the unit of {new_names[0]} is not specified in the dataset. Please specify the unit of {new_names[0]} first.'
+                )
+
         self.data.loc[:, new_names] = new_cols
 
     def add_row(self, new_rows) -> None:
@@ -450,15 +479,16 @@ class BasicDataset:
             return self.ranges.get(name, None)
 
     def get_subsample(
-        self, subsample: Union[None, str, np.ndarray]
-    ) -> np.ndarray:  # sourcery skip: lift-return-into-if
+            self,
+            subsample: Union[None, str, np.ndarray],
+            debug=False) -> np.ndarray:  # sourcery skip: lift-return-into-if
         _subsample: np.ndarray
         # TODO: 0, 1 to bool
 
         if subsample is None:
             _subsample = np.ones(self.data.shape[0]).astype(bool)
         elif isinstance(subsample, str):
-            _subsample = self.string_to_subsample(subsample)
+            _subsample = self.string_to_subsample(subsample, debug=debug)
         # if only include 0 or 1, convert to bool
         # elif np.unique(subsample).tolist() in [[0], [1], [0, 1], [1, 0]]:
         #     _subsample = subsample.astype(bool)
@@ -475,11 +505,14 @@ class BasicDataset:
         _subsample[index] = True
         return _subsample
 
-    def string_to_subsample(self, string) -> np.ndarray:
+    def string_to_subsample(self, string, debug=False) -> np.ndarray:
         # sourcery skip: lift-return-into-if, remove-unnecessary-else
 
         if not self.is_legal_name(string):
-            _subsample = self.inequality_to_subsample(string)
+            if is_inequality(string):
+                _subsample = self.inequality_to_subsample(string, debug=debug)
+            else:
+                raise ValueError(f'{string} is not a legal name or inequality')
         else:
             names_list = list(self.names)
             subsample_idx = names_list.index(string)
@@ -514,12 +547,13 @@ class BasicDataset:
             subsample = self.index_to_bool_subsample(subsample)
         return subsample
 
+    # TODO: how about the key that do not exist in the dataset?
     def inequality_to_subsample(self,
                                 inequality_string,
                                 debug=False) -> np.ndarray:
         meta_inequality_list = parse_and_or(inequality_string)
         if debug:
-            print(meta_inequality_list)
+            print("meta_inequality_list:", meta_inequality_list)
         all_subsample = []
         j = 0
 
@@ -545,7 +579,7 @@ class BasicDataset:
         command = "".join(meta_inequality_list)
         if debug:
             # print(meta_inequality_list)
-            print(command)
+            print("command:", command)
         return eval(command)  # pylint: disable=eval-used
 
     def inequality_to_subsample_single(self,
@@ -554,10 +588,17 @@ class BasicDataset:
         '''
         Return the subsample according to the inequality string.
         '''
+        if debug:
+            print("inequality_to_subsample_single begin")
+
+        if not is_inequality(inequality_string):
+            raise ValueError(f'{inequality_string} is not an inequality')
+
         inequality_list = parse_inequality(inequality_string)
         subsample = np.ones(self.data.shape[0]).astype(bool)
 
         if debug:
+
             print("inequality_list:", inequality_list)
 
         op_list = ['<=', '>=', '<', '>', '==']
@@ -589,6 +630,9 @@ class BasicDataset:
 
                 subsample = subsample & eval(command)  # pylint: disable=eval-used
 
+        if debug:
+            print("inequality_to_subsample_single end")
+
         return subsample
 
     def get_subsample_each_bin_by_name(
@@ -598,7 +642,7 @@ class BasicDataset:
         title_ndigits=2,
         return_edges=False,
         list_shape=None,
-        range=None, # pylint: disable=redefined-builtin
+        range=None,  # pylint: disable=redefined-builtin
         subsample=None
     ) -> Union[tuple[List, List], tuple[List, List, Union[List, np.ndarray]]]:
         """

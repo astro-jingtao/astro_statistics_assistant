@@ -7,7 +7,48 @@ https://en.wikipedia.org/wiki/Propagation_of_uncertainty
 
 import numpy as np
 
+
+def sample_based_propagation(func,
+                             args,
+                             kwargs=None,
+                             args_pos=None,
+                             kwargs_key=None,
+                             n_samples=100):
+
+    if args_pos is None:
+        args_pos = []
+    if kwargs_key is None:
+        kwargs_key = {}
+    if kwargs is None:
+        kwargs = {}
+
+    for i in args_pos:
+        v, e = args[i]
+        v = np.asarray(v)
+        e = np.asarray(e)
+        if v.ndim != e.ndim:
+            raise ValueError(
+                f"The dimension of value and error are different for argument {i}."
+            )
+        size = (n_samples, ) + v.shape
+        args[i] = np.random.normal(v, e, size=size)
+
+    for k in kwargs_key:
+        v, e = kwargs[k]
+        v = np.asarray(v)
+        e = np.asarray(e)
+        if v.ndim != e.ndim:
+            raise ValueError(
+                "The dimension of value and error are different for keyword argument {k}."
+            )
+        size = (n_samples, ) + v.shape
+        kwargs[k] = np.random.normal(v, e, size=size)
+
+    return func(*args, **kwargs)
+
+
 # 1 element
+
 
 def log(x, x_err, with_value=False):
     # sourcery skip: assign-if-exp, reintroduce-else
@@ -52,6 +93,7 @@ def exp(x, x_err, with_value=False):
         return np.abs(x_err * value), value
     return np.abs(x_err * value)
 
+
 def power(x, x_err, a=1, with_value=False):
     '''
     caluculate the error of x**a
@@ -67,21 +109,26 @@ def power(x, x_err, a=1, with_value=False):
         return np.abs(a * np.power(x, a - 1) * x_err), np.power(x, a)
     return np.abs(a * np.power(x, a - 1) * x_err)
 
+
 def power_snr(x, x_snr, a=1):
     '''
     caluculate the snr of x**a
     
     |x_snr/a|
     '''
-    return np.abs(x_snr/a)
+    return np.abs(x_snr / a)
+
 
 def square(x, x_err, with_value=False):
     return power(x, x_err, a=2, with_value=with_value)
 
+
 def square_snr(x, x_snr):
     return power_snr(x, x_snr, a=2)
 
+
 # 2 elements
+
 
 def ratio(x, y, x_err, y_err, with_value=False):
     # sourcery skip: assign-if-exp, reintroduce-else
@@ -108,7 +155,9 @@ def multiply(x, y, x_err, y_err, with_value=False):
         return err, x * y
     return err
 
+
 # n elements
+
 
 def sum(xs, x_errs, w=None, a=None, with_value=False):
     # sourcery skip: assign-if-exp, reintroduce-else

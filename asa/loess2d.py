@@ -82,7 +82,7 @@ def loess_2d_map(x,
         The weight for each data point. If None, all points are weighted equally.
     n_nbr
         The number of neighbors to use for the LOESS fit.
-        # of neighbors = (n_nbr >= 1) ? int(n_nbr) : int(n_nbr * N)
+        number of neighbors = (n_nbr >= 1) ? int(n_nbr) : int(n_nbr * N)
     
     Returns
     -------
