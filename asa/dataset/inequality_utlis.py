@@ -1,5 +1,6 @@
 import re
 
+
 def parse_inequality(inequaliyt_string):
     # deal with ''
     splitted = re.split(r'(<=|>=|<|>|==)', inequaliyt_string.replace(" ", ""))
@@ -19,4 +20,4 @@ def parse_and_or(string):
 
 
 def is_inequality(string):
-    return re.search(r'(<=|>=|<|>)', string) is not None
+    return re.search(r'(<=|>=|<|>|==)', string) is not None
