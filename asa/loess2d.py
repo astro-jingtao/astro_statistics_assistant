@@ -7,7 +7,16 @@ from scipy.spatial import KDTree
 
 
 class LOESS2D:
-    def __init__(self, x, y, val, n_nbr, w=None, boxsize=None, xy_ratio=1, verbose=False):
+
+    def __init__(self,
+                 x,
+                 y,
+                 val,
+                 n_nbr,
+                 w=None,
+                 boxsize=None,
+                 xy_ratio=1,
+                 verbose=False):
         """
         x, y, val: ndarray with shape (N, )
             input coordinate and values
@@ -28,9 +37,9 @@ class LOESS2D:
         self._yn = self._ynorm(y)
         self._val = val.copy()
         self._w = np.ones_like(x) if w is None else w.copy()
-        self._tree = KDTree(
-            np.column_stack((self._xn, self._yn)), copy_data=True, boxsize=boxsize
-        )
+        self._tree = KDTree(np.column_stack((self._xn, self._yn)),
+                            copy_data=True,
+                            boxsize=boxsize)
         self._n_nbr = int(n_nbr) if n_nbr >= 1 else int(n_nbr * len(x))
         if self._n_nbr > len(x):
             raise ValueError(
@@ -42,10 +51,12 @@ class LOESS2D:
     def __call__(self, x, y):
         x_norm = self._xnorm(x)
         y_norm = self._ynorm(y)
-        d_nbr, i_nbr = self._tree.query(np.column_stack((x_norm, y_norm)), self._n_nbr)
+        d_nbr, i_nbr = self._tree.query(np.column_stack((x_norm, y_norm)),
+                                        self._n_nbr)
         d_norm = (d_nbr.T / d_nbr[:, -1]).T
         weight = np.power(1 - np.power(d_norm, 3), 3) * self._w[i_nbr]
-        return np.sum(weight * self._val[i_nbr], axis=1) / np.sum(weight, axis=1)
+        return np.sum(weight * self._val[i_nbr], axis=1) / np.sum(weight,
+                                                                  axis=1)
 
     def _gen_norm(self, arr, ratio=1):
         """
@@ -54,15 +65,27 @@ class LOESS2D:
         """
         xl, x_med, xu = np.quantile(arr, [0.17, 0.5, 0.84])
         return lambda x: (x - x_med) / (xu - xl) * ratio
-    
 
-def loess_2d_map(x,
-                 y,
-                 z,
-                 xnew,
-                 ynew,
-                 w=None,
-                 n_nbr=0.5):
+
+def loess_smooth(Z, W=None, n_nbr=0.5, mask=None):
+
+    if W is None:
+        W = np.ones_like(Z)
+    if mask is None:
+        mask = np.ones_like(Z, dtype=bool)
+
+    xx, yy = np.meshgrid(np.arange(Z.shape[1]), np.arange(Z.shape[0]))
+
+    return loess_2d_map(xx[mask],
+                        yy[mask],
+                        Z[mask],
+                        xx,
+                        yy,
+                        w=W[mask],
+                        n_nbr=n_nbr)
+
+
+def loess_2d_map(x, y, z, xnew, ynew, w=None, n_nbr=0.5):
     '''It takes the x, y, and z values of the original data, the xnew and ynew values of the new position, and the
     number of neighbors to use in the LOESS fit, and returns the z values of the new grid
     
