@@ -415,7 +415,7 @@ def _trend_interval(ax, x_edges, x_bin, y_bin, statistic, color, plot_kwargs,
 
 scatter_color_cycle = ColorCycler()
 
-
+# TODO: c is color
 def plot_scatter(x,
                  y,
                  xerr=None,
@@ -496,16 +496,20 @@ def plot_scatter(x,
         has_line = True
         if line_kwargs is None:
             line_kwargs = {}
-        if "fmt" not in errorbar_kwargs:
-            errorbar_kwargs["fmt"] = ""
-        if "alpha" not in errorbar_kwargs:
-            errorbar_kwargs["alpha"] = kwargs.get("alpha", None)
+        # DONT KNOW WHY WE NEED THIS, JUST COMMENT IT OUT FOR NOW
+        # if "fmt" not in errorbar_kwargs:
+        #     errorbar_kwargs["fmt"] = ""
+        # if "alpha" not in errorbar_kwargs:
+        #     errorbar_kwargs["alpha"] = kwargs.get("alpha", None)
     else:
         has_line = False
 
     if ax is None:
         ax = plt.gca()
 
+    # xerr and yerr can be two dim arrays like [x_err_min, x_err_max]
+    # so we need to transpose them to match the shape of x and y
+    # pylint: disable=unbalanced-tuple-unpacking
     x, y, z, weights, xerr, yerr = remove_bad([x, y, z, weights, xerr, yerr],
                                               to_transpose=[4, 5])
 
