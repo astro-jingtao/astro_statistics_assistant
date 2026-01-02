@@ -20,6 +20,7 @@ class BasicDataset:
     # TODO: auto complete for self['x']
     # TODO: DF to AASTeX tabel. Maybe ref to: https://github.com/liuguanfu1120/Excel-to-AASTeX/blob/main/xlsx-to-AAS-table.ipynb
     # TODO: better OP_MAP_LABEL with format string.
+    # TODO: dict as input
 
     OP_MAP: Dict[str, Callable] = {'log10': np.log10, 'square': np.square}
     OP_MAP_LABEL: Dict[str, str] = OP_MAP_LABEL
