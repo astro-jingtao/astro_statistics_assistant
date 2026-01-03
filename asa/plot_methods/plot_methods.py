@@ -1,4 +1,3 @@
-import warnings
 from typing import cast
 
 import matplotlib.pyplot as plt
@@ -16,7 +15,6 @@ from asa.loess2d import loess_2d_map
 from asa.plot_methods.plot_utils import ColorCycler, auto_setup_ax, jitter_data, prepare_data
 from asa.utils import (auto_set_range, flag_bad, set_default_kwargs)
 
-
 TREND_QUANTILE_ALIASES = ['q', 'quantile', 'percentile']
 TREND_STD_ALIASES = ['s', 'sigma', 'std']
 TREND_IQR_ALIASES = ['iqr', 'interquartile']
@@ -29,6 +27,7 @@ trend_color_cycle = ColorCycler()
 @auto_setup_ax
 def plot_trend(x,
                y,
+               *,
                bins=20,
                quantile=False,
                x_method='center',
@@ -139,8 +138,6 @@ def plot_trend(x,
                                  weights,
                                  arg_names=['x', 'y', 'weights'])
 
-    range = auto_set_range(x, _range=range, auto_p=auto_p)
-
     if weights is None:
         weights = np.ones_like(x)
 
@@ -178,6 +175,8 @@ def plot_trend(x,
         y_statistic = None
     else:
         y_statistic = list(set(y_statistic))
+
+    range = auto_set_range(x, _range=range, auto_p=auto_p)
 
     x_center, x_edges, _, statistic = bin_1d(x,
                                              y,
@@ -217,6 +216,10 @@ def plot_trend(x,
 
     if yerr_method is not None:
 
+        errorbar_kwargs = set_default_kwargs(errorbar_kwargs,
+                                             color=color,
+                                             linestyle="")
+
         yerr_low, yerr_up = _trend_get_lower_upper(y_bin, yerr_method,
                                                    yerr_args, statistic)
         if y_bin is None:
@@ -226,24 +229,26 @@ def plot_trend(x,
 
         yerr = (_y_bin - yerr_low, yerr_up - _y_bin)
 
-        errorbar_kwargs = set_default_kwargs(errorbar_kwargs,
-                                             color=color,
-                                             linestyle="")
+        _x_bin, _y_bin, _yerr = prepare_data(
+            x_bin,
+            _y_bin,
+            yerr,
+            arg_names=['x_bin', '_y_bin', 'yerr'],
+            to_transpose=[2])
 
-        is_bad = flag_bad(x_bin) | flag_bad(_y_bin)
-        _x_bin, _y_bin, _yerr = x_bin[~is_bad], _y_bin[~is_bad], np.asarray(
-            yerr)[:, ~is_bad]
         ax.errorbar(_x_bin, _y_bin, yerr=_yerr, **errorbar_kwargs)
 
     if fbetween_method is not None:
+
+        fbetween_kwargs = set_default_kwargs(fbetween_kwargs,
+                                             color=color,
+                                             alpha=0.2)
 
         fbetween = _trend_get_lower_upper(y_bin, fbetween_method,
                                           fbetween_args, statistic)
         _fbt_low, _fbt_up = fbetween
 
-        fbetween_kwargs = set_default_kwargs(fbetween_kwargs,
-                                             color=color,
-                                             alpha=0.2)
+        
 
         if fbetween_bad_policy == 'omit':
             _x_bin = x_bin
@@ -393,6 +398,7 @@ scatter_color_cycle = ColorCycler()
 @auto_setup_ax
 def plot_scatter(x,
                  y,
+                 *,
                  xerr=None,
                  yerr=None,
                  z=None,
@@ -421,14 +427,6 @@ def plot_scatter(x,
     # TODO: z_range, automatically adjust?
     ax = cast(Axes, ax)
 
-    # TODO: auto alias handling?
-    if 'c' in kwargs:
-        if color is not None:
-            kwargs.pop('c')
-            print("Warning: both color and c are provided, c is ignored.")
-        else:
-            color = kwargs.pop('c')
-
     x, y, z, weights, xerr, yerr = prepare_data(
         x,
         y,
@@ -439,8 +437,15 @@ def plot_scatter(x,
         arg_names=['x', 'y', 'z', 'weights', 'xerr', 'yerr'],
         to_transpose=[4, 5])
 
-    has_z = False
+    # TODO: auto alias handling?
+    if 'c' in kwargs:
+        if color is not None:
+            kwargs.pop('c')
+            print("Warning: both color and c are provided, c is ignored.")
+        else:
+            color = kwargs.pop('c')
 
+    has_z = False
     if z is None:
         z = np.ones_like(x)
         if is_z_kde:
@@ -453,11 +458,9 @@ def plot_scatter(x,
 
     if has_z and color is not None:
         print(
-            "Warning: color is ignored when z is provided and is_z_kde is True"
-        )
+            "Warning: color is ignored when z is provided or is_z_kde is True")
 
     if color is None:
-        # load color from plt.rcParams
         color = scatter_color_cycle.next(ax=ax)
 
     if weights is None:
@@ -465,7 +468,6 @@ def plot_scatter(x,
 
     if (xerr is not None) or (yerr is not None):
         has_err = True
-
         errorbar_kwargs = set_default_kwargs(errorbar_kwargs,
                                              fmt="",
                                              linestyle="",
@@ -480,26 +482,8 @@ def plot_scatter(x,
     if linestyle is not None:
         has_line = True
         line_kwargs = set_default_kwargs(line_kwargs)
-        # DONT KNOW WHY WE NEED THIS, JUST COMMENT IT OUT FOR NOW
-        # if "fmt" not in errorbar_kwargs:
-        #     errorbar_kwargs["fmt"] = ""
-        # if "alpha" not in errorbar_kwargs:
-        #     errorbar_kwargs["alpha"] = kwargs.get("alpha", None)
     else:
         has_line = False
-
-    # xerr and yerr can be two dim arrays like [x_err_min, x_err_max]
-    # so we need to transpose them to match the shape of x and y
-    # pylint: disable=unbalanced-tuple-unpacking
-    x, y, z, weights, xerr, yerr = prepare_data(
-        x,
-        y,
-        z,
-        weights,
-        xerr,
-        yerr,
-        arg_names=['x', 'y', 'z', 'weights', 'xerr', 'yerr'],
-        to_transpose=[4, 5])
 
     range = auto_set_range(x, y, _range=range, auto_p=auto_p)
 
@@ -525,49 +509,37 @@ def plot_scatter(x,
     else:
         _z = z[is_in_range]
 
+    _x = jitter_data(_x, x_jitter)
+    _y = jitter_data(_y, y_jitter)
+
     if has_z:
         if if_smooth_z:
             _z = loess_2d_map(_x, _y, _z, _x, _y, _weights, n_smooth)
-
-        _x = jitter_data(_x, x_jitter)
-        _y = jitter_data(_y, y_jitter)
-
-        sc = ax.scatter(_x, _y, c=_z, label=label, **kwargs)
-        if with_colorbar:
-            plt.colorbar(sc, ax=ax)
-        if has_err:
-            plot_errorbar(_x,
-                          _y,
-                          c=_z,
-                          xerr=_xerr,
-                          yerr=_yerr,
-                          ax=ax,
-                          with_colorbar=False,
-                          **errorbar_kwargs)
-        if has_line:
-            # TODO: somehow derive the color from _z and cmap?
-            ax.plot(_x, _y, linestyle=linestyle, color=color, **line_kwargs)
     else:
+        _z = None
 
-        _x = jitter_data(_x, x_jitter)
-        _y = jitter_data(_y, y_jitter)
+    if has_err:
+        plot_errorbar(_x,
+                      _y,
+                      c=_z,
+                      xerr=_xerr,
+                      yerr=_yerr,
+                      ax=ax,
+                      with_colorbar=False,
+                      **errorbar_kwargs)
 
-        # c = color makes facecolors='none' does not work
-        ax.scatter(_x, _y, color=color, label=label, **kwargs)
-        if has_err:
-            plot_errorbar(_x,
-                          _y,
-                          color=color,
-                          xerr=_xerr,
-                          yerr=_yerr,
-                          ax=ax,
-                          with_colorbar=False,
-                          **errorbar_kwargs)
-        if has_line:
-            ax.plot(_x, _y, linestyle=linestyle, color=color, **line_kwargs)
+    sc = ax.scatter(_x, _y, c=_z, label=label, **kwargs)
+
+    if has_z and with_colorbar:
+        plt.colorbar(sc, ax=ax)
+
+    if has_line:
+        # TODO: somehow derive the color from _z and cmap? if has_z
+        ax.plot(_x, _y, linestyle=linestyle, color=color, **line_kwargs)
 
 
 def plot_corner(xs,
+                *,
                 bins=20,
                 range=None,
                 weights=None,
@@ -743,6 +715,7 @@ def plot_corner(xs,
 @auto_setup_ax
 def plot_contour(x,
                  y,
+                 *,
                  bins=20,
                  range='auto',
                  kde_smooth=False,
@@ -870,6 +843,7 @@ def plot_contour(x,
 def plot_heatmap(x,
                  y,
                  z,
+                 *,
                  weights=None,
                  ax=None,
                  bins=10,
@@ -927,6 +901,7 @@ def plot_heatmap(x,
 @auto_setup_ax
 def plot_sample_to_point(x,
                          y,
+                         *,
                          ax=None,
                          weights=None,
                          ddof=0,
@@ -1006,6 +981,7 @@ def plot_sample_to_point(x,
 @auto_setup_ax
 def plot_errorbar(x,
                   y,
+                  *,
                   xerr=None,
                   yerr=None,
                   c=None,
@@ -1091,7 +1067,7 @@ def plot_errorbar(x,
 
 
 @auto_setup_ax
-def plot_volcano(x_lst, y, method='pearsonr', ax=None, **kwargs):
+def plot_volcano(x_lst, y, *, method='pearsonr', ax=None, **kwargs):
     ax = cast(Axes, ax)
 
     corr_dict = {'pvalue': [], 'statistic': []}
@@ -1109,6 +1085,7 @@ def plot_volcano(x_lst, y, method='pearsonr', ax=None, **kwargs):
 @auto_setup_ax
 def plot_confusion_matrix(y_A,
                           y_B,
+                          *,
                           labels=None,
                           cmap='Blues',
                           figsize=(9, 6),

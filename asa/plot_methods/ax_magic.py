@@ -7,7 +7,7 @@ from asa.plot_methods.plot_utils import auto_setup_ax
 
 
 @auto_setup_ax
-def ax_fill_between(y1, y2, ax=None, **kwargs):
+def ax_fill_between(y1, y2, *, ax=None, **kwargs):
 
     ax = cast(Axes, ax)
 
@@ -17,7 +17,7 @@ def ax_fill_between(y1, y2, ax=None, **kwargs):
 
 
 @auto_setup_ax
-def ax_fill_betweenx(x1, x2, ax=None, **kwargs):
+def ax_fill_betweenx(x1, x2, *, ax=None, **kwargs):
 
     ax = cast(Axes, ax)
 
@@ -27,7 +27,8 @@ def ax_fill_betweenx(x1, x2, ax=None, **kwargs):
 
 
 @auto_setup_ax
-def plot_line(x=None,
+def plot_line(*,
+              x=None,
               y=None,
               p1=None,
               p2=None,
@@ -85,7 +86,8 @@ def plot_line(x=None,
 
 
 @auto_setup_ax
-def plot_log_line(p1=None,
+def plot_log_line(*,
+                  p1=None,
                   p2=None,
                   k=None,
                   b=None,

@@ -8,7 +8,8 @@ from sklearn.mixture._gaussian_mixture import (
     _estimate_gaussian_covariances_tied)
 
 
-# TODO: fix cov
+# TODO: fix cov; what does it mean?
+# TODO: more test to make sure it works as expected
 class GaussianMixture(SK_GaussianMixture):
 
     def __init__(
@@ -93,6 +94,10 @@ class GaussianMixture(SK_GaussianMixture):
             cov_params = n_features * (n_features + 1) / 2.0
         elif self.covariance_type == "spherical":
             cov_params = self.n_components
+        else:
+            raise ValueError(
+                f"covariance_type must be one of 'full', 'tied', 'diag','spherical', got {self.covariance_type}"
+            )
         mean_params = 0 if self.fix_means else n_features * self.n_components
         weights_params = 0 if self.fix_weights else self.n_components - 1
         return int(cov_params + mean_params + weights_params)
