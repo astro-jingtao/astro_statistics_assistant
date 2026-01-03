@@ -36,13 +36,17 @@ class ContourChecker:
                               self.Y,
                               self.Z,
                               levels=[self.contour_level])
-        if not contour.collections:
-            print(
-                "Warning: No contour found at this level.  All points will be considered outside."
-            )
-            return None  # Return None if no contour is found
 
-        paths = contour.collections[0].get_paths()
+        # get_paths() returns a list of Path objects directly
+        paths = contour.get_paths()
+            
+        if not paths:
+            print(
+                "Warning: No contour found at this level. All points will be considered outside."
+            )
+            plt.close() # Ensure we close the plot even on early return
+            return None
+
         for p in paths:
             # if not closed
             if p.codes[-1] != mpath.Path.CLOSEPOLY:

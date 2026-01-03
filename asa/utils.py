@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import sys
-from typing import List
+import inspect
+from typing import Any, Dict, List, Mapping
 
 import numpy as np
 
@@ -39,26 +40,47 @@ def balance_class(x, y, random_state=None):
     return x[idx], y[idx]
 
 
-def is_float(x):
+def _validate_type(_type):
+    if _type not in ['both', 'number', 'array']:
+        raise ValueError(
+            f"type should be 'both', 'number' or 'array', got {_type}")
+
+
+def is_float(x, _type='both'):
     '''
     check if x is kind of float, such as built-in float, 
     np.float32, np.float64, np.ndarray of float, list of float...
     '''
-    return (isinstance(x, (float, np.float32, np.float64))
-            or (isinstance(x, np.ndarray) and x.dtype.kind == 'f')
-            or (isinstance(x, list) and all(isinstance(y, float) for y in x)))
+
+    _validate_type(_type)
+
+    flag = False
+    if _type in ['both', 'number']:
+        flag |= isinstance(x, (float, np.float32, np.float64))
+    if _type in ['both', 'array']:
+        flag |= ((isinstance(x, np.ndarray) and x.dtype.kind == 'f') or
+                 (isinstance(x, list) and all(isinstance(y, float)
+                                              for y in x)))
+    return flag
 
 
-def is_int(x):
+def is_int(x, _type='both'):
     '''
     check if x is kind of int, such as built-in int, 
     np.int32, np.int64, np.ndarray of int, list of int...
     '''
-    return (isinstance(x, (int, np.int32, np.int64))
-            or (isinstance(x, np.ndarray) and x.dtype.kind == 'i')
-            or (isinstance(x, list) and all(isinstance(y, int) for y in x)))
+    _validate_type(_type)
 
+    flag = False
+    if _type in ['both', 'number']:
+        flag |= isinstance(x, (int, np.int32, np.int64))
+    if _type in ['both', 'array']:
+        flag |= ((isinstance(x, np.ndarray) and x.dtype.kind == 'i') or
+                 (isinstance(x, list) and all(isinstance(y, int) for y in x)))
 
+    return flag
+
+#TODO: support _type
 def is_bool(x):
     '''
     check if x is kind of bool, such as built-in bool, np.bool, np.ndarray of bool, list of bool...
@@ -66,6 +88,13 @@ def is_bool(x):
     return isinstance(
         x, bool) or (isinstance(x, np.ndarray) and x.dtype.kind == 'b') or (
             isinstance(x, list) and all(isinstance(y, bool) for y in x))
+
+def is_real_number(x, _type='both'):
+    '''
+    check if x is kind of float or int, such as built-in float, int, 
+    np.float32, np.float64, np.int32, np.int64, np.ndarray of float or int, list of float or int...
+    '''
+    return is_float(x, _type=_type) or is_int(x, _type=_type)
 
 
 def string_to_list(string):
@@ -96,17 +125,69 @@ def set_range_default(x):
         return [np.min(x), np.max(x)]
 
 
-def auto_set_range(x, y, _range, auto_p):
+def auto_set_range(*args, _range=None, auto_p=None):
+
+    DEFAULT_AUTO_P = (1, 99)
+
+    def is_1d_range(lst):
+        flag = (len(lst) == 2)
+        if flag:
+            flag &= is_real_number(lst[0], _type='number')
+        if flag:
+            flag &= is_real_number(lst[1], _type='number')
+        if flag:
+            flag &= (lst[0] <= lst[1])
+            return flag
+        return False
+
+    n_arg = len(args)
+
+    # case: None
     if _range is None:
-        _range = [set_range_default(x), set_range_default(y)]
-    elif _range == 'auto':
+        _range = [set_range_default(x) for x in args]
+    # otherwise, auto_p will be used
+    else:
         if auto_p is None:
-            auto_p = ([1, 99], [1, 99])
-        _range = [[
-            np.percentile(x, auto_p[0][0]),
-            np.percentile(x, auto_p[0][1])
-        ], [np.percentile(y, auto_p[1][0]),
-            np.percentile(y, auto_p[1][1])]]
+            auto_p = (DEFAULT_AUTO_P for _ in range(n_arg))
+        # case: [min, max]
+        elif is_1d_range(auto_p):
+            auto_p = [auto_p for _ in range(n_arg)]
+        # case: [[min, max]|None, ...]
+        elif len(auto_p) == n_arg:
+            for i, p in enumerate(auto_p):
+                if p is None:
+                    auto_p[i] = DEFAULT_AUTO_P
+        else:
+            raise ValueError(f"auto_p ({auto_p}) can not be parsed")
+
+    # Now auto_p is [[min, max], ...]
+    # case: 'auto'
+    if _range == 'auto':
+        _range = []
+        for x, p in zip(args, auto_p):
+            _range.append([np.percentile(x, p[0]), np.percentile(x, p[1])])
+    # case: [min, max]
+    elif is_1d_range(_range):
+        _range = [_range for _ in range(n_arg)]
+    # case: [[min, max]|None|'auto', ...]
+    elif len(_range) == n_arg:
+        for i, r in enumerate(_range):
+            if r is None:
+                _range[i] = set_range_default(args[i])
+            elif r == 'auto':
+                p = auto_p[i]
+                x = args[i]
+                _range[i] = [np.percentile(x, p[0]), np.percentile(x, p[1])]
+            elif is_1d_range(r):
+                pass
+            else:
+                raise ValueError(f"_range element {i} ({r}) can not be parsed")
+    else:
+        raise ValueError(f"_range ({_range}) can not be parsed")
+
+    if (len(_range) == 1) and (n_arg == 1):
+        _range = _range[0]
+
     return _range
 
 
@@ -188,6 +269,23 @@ def get_ndim(x):
     return np.asarray(x).ndim
 
 
+def get_shape(x) -> tuple:
+    """
+    Get the shape of a list of lists
+    
+    Parameters
+    ----------
+    lst : array-like
+        The input list of lists.
+    
+    Returns 
+    -------
+    tuple
+        The shape of the list.
+    """
+    return np.asarray(x).shape
+
+
 def get_rank(x):
     return np.argsort(np.argsort(x))
 
@@ -236,3 +334,68 @@ def deduplicate(x_o, max_dx=0.1):
         x[i_last + 1:] += delta
 
     return x
+
+
+def set_default_kwargs(kwargs: Mapping[str, Any] | None,
+                       **defaults) -> Dict[str, Any]:
+    """
+    Return a new dict with defaults merged in; leave `kwargs` untouched.
+    Raises TypeError if kwargs is not a mapping.
+
+    Parameters
+    ----------
+    kwargs : dict | None
+        The keyword arguments to be set.
+        Regarded as an empty dict if None.
+    defaults : dict
+        The default keyword arguments.
+
+    Returns
+    -------
+    dict
+        The updated keyword arguments.
+    """
+    if kwargs is None:
+        kwargs = {}
+    if not isinstance(kwargs, Mapping):
+        raise TypeError(
+            f'kwargs must be a dict-like mapping, got {type(kwargs)}')
+
+    # shallow copy of kwargs
+    new_kwargs = dict(kwargs)
+    for k, v in defaults.items():
+        new_kwargs.setdefault(k, v)
+
+    return new_kwargs
+
+
+def ensure_parameter_spec(func,
+                          param_name,
+                          expected_default=inspect.Parameter.empty):
+    """
+    Validate if the function signature matches the decorator requirements.
+    
+    Args:
+        func: The function to inspect.
+        param_name: Name of the parameter to look for.
+        expected_default: The value we expect the parameter to have as default.
+        strict_default: If True, the parameter MUST have the expected_default.
+                        If False, we only check if the parameter exists.
+    """
+    sig = inspect.signature(func)
+    params = sig.parameters
+
+    # Check 1: Existence
+    if param_name not in params:
+        raise ValueError(
+            f"Function '{func.__name__}' is missing the required parameter: '{param_name}'"
+        )
+
+    # Check 2: Default Value (only if strict_default is requested)
+    if expected_default is not inspect.Parameter.empty:
+        actual_default = params[param_name].default
+        if actual_default is not expected_default:
+            raise ValueError(
+                f"Function '{func.__name__}' parameter '{param_name}' must have a "
+                f"default value of {expected_default}, but found {actual_default}."
+            )
