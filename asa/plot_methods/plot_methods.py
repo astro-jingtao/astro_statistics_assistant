@@ -16,8 +16,6 @@ from asa.loess2d import loess_2d_map
 from asa.plot_methods.plot_utils import ColorCycler, auto_setup_ax, jitter_data, prepare_data
 from asa.utils import (auto_set_range, flag_bad, set_default_kwargs)
 
-# TODO: extract common code
-# - flag and remove bad
 
 TREND_QUANTILE_ALIASES = ['q', 'quantile', 'percentile']
 TREND_STD_ALIASES = ['s', 'sigma', 'std']
@@ -50,7 +48,6 @@ def plot_trend(x,
                errorbar_kwargs=None,
                fbetween_kwargs=None,
                plot_kwargs=None):
-    # TODO: fix range and auto_p
     """
     Plot the trend line between two variables with options for error bars and shadowed intervals.
 
@@ -393,7 +390,6 @@ def _trend_interval(ax, x_edges, x_bin, y_bin, statistic, color, plot_kwargs,
 scatter_color_cycle = ColorCycler()
 
 
-# TODO: c is color
 @auto_setup_ax
 def plot_scatter(x,
                  y,
@@ -424,6 +420,14 @@ def plot_scatter(x,
     # TODO: line ordered
     # TODO: z_range, automatically adjust?
     ax = cast(Axes, ax)
+
+    # TODO: auto alias handling?
+    if 'c' in kwargs:
+        if color is not None:
+            kwargs.pop('c')
+            print("Warning: both color and c are provided, c is ignored.")
+        else:
+            color = kwargs.pop('c')
 
     x, y, z, weights, xerr, yerr = prepare_data(
         x,
