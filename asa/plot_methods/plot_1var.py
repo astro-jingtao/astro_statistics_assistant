@@ -13,6 +13,7 @@ from asa.utils import remove_bad
 # TODO: use plt.bar only for color coding and histtype == 'bar'
 @auto_setup_ax
 def plot_hist(x,
+              *,
               bins=10,
               range=None,
               weights=None,
