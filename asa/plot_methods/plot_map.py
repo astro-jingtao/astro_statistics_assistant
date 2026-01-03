@@ -7,7 +7,7 @@ from asa.plot_methods.plot_utils import auto_setup_ax
 
 
 @auto_setup_ax
-def imshow(X, ax=None, mask=None, pmin=None, pmax=None, **kwargs):
+def imshow(X, *, ax=None, mask=None, pmin=None, pmax=None, **kwargs):
     ax = cast(Axes, ax)
 
     if mask is not None:

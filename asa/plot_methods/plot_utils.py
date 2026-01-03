@@ -2,6 +2,7 @@ import functools
 from typing import Final
 
 import matplotlib.gridspec as gridspec
+from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 import numpy as np
 from asa.utils import (all_asarray, any_empty, remove_bad,
@@ -214,8 +215,24 @@ def auto_setup_ax(func):
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        if kwargs.get('ax') is None:
-            kwargs['ax'] = plt.gca()
+        ax = kwargs.get('ax')
+
+        if ax is None:
+            ax = plt.gca()
+        # is an array of axes with only one element
+        elif isinstance(ax, np.ndarray) and ax.size == 1:
+            print(
+                "Warning: 'ax' is an array with only one element, unwrapping it to single Axes instance. If 'ax' will be returned by the function, it will be an unwrapped Axes instance rather than original array."
+            )
+            ax = ax.item()
+
+        if not isinstance(ax, Axes):
+            raise ValueError(
+                f"'ax' should be an instance of matplotlib.axes.Axes, an array of only one such element, or None, got {type(ax)}."
+            )
+
+        kwargs['ax'] = ax
+
         return func(*args, **kwargs)
 
     return wrapper
