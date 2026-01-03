@@ -21,52 +21,6 @@ class TestUtils:
         expected_output = [[1, 2, 3, 4], [5, 6, 7, 8]]
         assert list_reshape(lst, shape) == expected_output
 
-    def test_is_float(self):
-
-        assert is_float(0.1)
-        assert is_float(np.float32(0.1))
-        assert is_float(np.float64(0.1))
-        assert is_float(np.array([0.1, 0.2, 0.3], dtype=np.float32))
-        assert is_float(np.array([0.1, 0.2, 0.3], dtype=np.float64))
-        assert is_float([0.1, 0.2, 0.3])
-
-        assert not is_float(1)
-        assert not is_float(np.int32(1))
-        assert not is_float(np.int64(1))
-        assert not is_float(np.array([1, 2, 3], dtype=np.int32))
-        assert not is_float(np.array([1, 2, 3], dtype=np.int64))
-
-        assert not is_float('a')
-        assert not is_float(np.array(['a', 'b', 'c']))
-
-        assert not is_float([1, 2, 3])
-        assert not is_float([0.1, 0.2, 'a'])
-
-        assert not is_float(np.ones(10, dtype=bool))
-        assert not is_float(np.zeros(10, dtype=str))
-
-    def test_is_int(self):
-
-        assert not is_int(0.1)
-        assert not is_int(np.float32(0.1))
-        assert not is_int(np.float64(0.1))
-        assert not is_int(np.array([0.1, 0.2, 0.3], dtype=np.float32))
-        assert not is_int(np.array([0.1, 0.2, 0.3], dtype=np.float64))
-        assert not is_int([0.1, 0.2, 0.3])
-
-        assert is_int(1)
-        assert is_int(np.int32(1))
-        assert is_int(np.int64(1))
-        assert is_int(np.array([1, 2, 3], dtype=np.int32))
-        assert is_int(np.array([1, 2, 3], dtype=np.int64))
-        assert is_int([1, 2, 3])
-
-        assert not is_int('a')
-        assert not is_int(np.array(['a', 'b', 'c']))
-        assert not is_int([0.1, 0.2, 'a'])
-        assert not is_int(np.ones(10, dtype=bool))
-        assert not is_int(np.zeros(10, dtype=str))
-
     def test_is_bool(self):
 
         assert not is_bool(0.1)
@@ -116,15 +70,172 @@ class TestUtils:
         for i in range(3):
             assert (y_balanced == i).sum() == (y_balanced == 0).sum()
 
-    def test_auto_range(self):
-        assert np.array_equal(auto_set_range([1, 2, 3], [4, 5, 6], None, None),
-                              [[1, 3], [4, 6]])
 
-        assert np.array_equal(auto_set_range([1], [4], None, None),
-                              [[0.5, 1.5], [3.5, 4.5]])
+class TestIsFloat:
 
-        assert np.array_equal(auto_set_range([], [], None, None),
+    def test_both(self):
+
+        assert is_float(0.1, _type='both')
+        assert is_float(np.float32(0.1), _type='both')
+        assert is_float(np.float64(0.1), _type='both')
+        assert is_float(np.array([0.1, 0.2, 0.3], dtype=np.float32),
+                        _type='both')
+        assert is_float(np.array([0.1, 0.2, 0.3], dtype=np.float64),
+                        _type='both')
+        assert is_float([0.1, 0.2, 0.3], _type='both')
+
+        # default should be 'both'
+        assert is_float(0.1)
+        assert is_float(np.float32(0.1))
+        assert is_float(np.float64(0.1))
+        assert is_float(np.array([0.1, 0.2, 0.3], dtype=np.float32))
+        assert is_float(np.array([0.1, 0.2, 0.3], dtype=np.float64))
+        assert is_float([0.1, 0.2, 0.3])
+
+        assert not is_float(1)
+        assert not is_float(np.int32(1))
+        assert not is_float(np.int64(1))
+        assert not is_float(np.array([1, 2, 3], dtype=np.int32))
+        assert not is_float(np.array([1, 2, 3], dtype=np.int64))
+
+        assert not is_float('a')
+        assert not is_float(np.array(['a', 'b', 'c']))
+
+        assert not is_float([1, 2, 3])
+        assert not is_float([0.1, 0.2, 'a'])
+
+        assert not is_float(np.ones(10, dtype=bool))
+        assert not is_float(np.zeros(10, dtype=str))
+
+    def test_number(self):
+
+        assert is_float(0.1, _type='number')
+        assert is_float(np.float32(0.1), _type='number')
+        assert is_float(np.float64(0.1), _type='number')
+        assert not is_float(np.array([0.1, 0.2, 0.3], dtype=np.float32),
+                            _type='number')
+        assert not is_float(np.array([0.1, 0.2, 0.3], dtype=np.float64),
+                            _type='number')
+        assert not is_float([0.1, 0.2, 0.3], _type='number')
+
+    def test_array(self):
+
+        assert not is_float(0.1, _type='array')
+        assert not is_float(np.float32(0.1), _type='array')
+        assert not is_float(np.float64(0.1), _type='array')
+        assert is_float(np.array([0.1, 0.2, 0.3], dtype=np.float32),
+                        _type='array')
+        assert is_float(np.array([0.1, 0.2, 0.3], dtype=np.float64),
+                        _type='array')
+        assert is_float([0.1, 0.2, 0.3], _type='array')
+
+
+class TestIsInt:
+
+    def test_both(self):
+
+        assert not is_int(0.1)
+        assert not is_int(np.float32(0.1))
+        assert not is_int(np.float64(0.1))
+        assert not is_int(np.array([0.1, 0.2, 0.3], dtype=np.float32))
+        assert not is_int(np.array([0.1, 0.2, 0.3], dtype=np.float64))
+        assert not is_int([0.1, 0.2, 0.3])
+
+        assert is_int(1, _type='both')
+        assert is_int(np.int32(1), _type='both')
+        assert is_int(np.int64(1), _type='both')
+        assert is_int(np.array([1, 2, 3], dtype=np.int32), _type='both')
+        assert is_int(np.array([1, 2, 3], dtype=np.int64), _type='both')
+        assert is_int([1, 2, 3], _type='both')
+
+        # default should be 'both'
+        assert is_int(1)
+        assert is_int(np.int32(1))
+        assert is_int(np.int64(1))
+        assert is_int(np.array([1, 2, 3], dtype=np.int32))
+        assert is_int(np.array([1, 2, 3], dtype=np.int64))
+        assert is_int([1, 2, 3])
+
+        assert not is_int('a')
+        assert not is_int(np.array(['a', 'b', 'c']))
+        assert not is_int([0.1, 0.2, 'a'])
+        assert not is_int(np.ones(10, dtype=bool))
+        assert not is_int(np.zeros(10, dtype=str))
+
+    def test_number(self):
+
+        assert is_int(1, _type='number')
+        assert is_int(np.int32(1), _type='number')
+        assert is_int(np.int64(1), _type='number')
+        assert not is_int(np.array([1, 2, 3], dtype=np.int32), _type='number')
+        assert not is_int(np.array([1, 2, 3], dtype=np.int64), _type='number')
+        assert not is_int([1, 2, 3], _type='number')
+
+    def test_array(self):
+
+        assert not is_int(1, _type='array')
+        assert not is_int(np.int32(1), _type='array')
+        assert not is_int(np.int64(1), _type='array')
+        assert is_int(np.array([1, 2, 3], dtype=np.int32), _type='array')
+        assert is_int(np.array([1, 2, 3], dtype=np.int64), _type='array')
+        assert is_int([1, 2, 3], _type='array')
+
+
+class TestAutoSetRange:
+
+    def test_2d_minmax(self):
+        assert np.array_equal(
+            auto_set_range([1, 2, 3], [4, 5, 6], _range=None, auto_p=None),
+            [[1, 3], [4, 6]])
+
+    def test_2d_preset_1drange(self):
+        assert np.array_equal(
+            auto_set_range([1, 2, 3], [4, 5, 6], _range=[1, 3], auto_p=None),
+            [[1, 3], [1, 3]])
+
+    def test_2d_partial_preset(self):
+        assert np.array_equal(
+            auto_set_range([1, 2, 3], [4, 5, 6],
+                           _range=[[2, 8], None],
+                           auto_p=None), [[2, 8], [4, 6]])
+
+    def test_2d_auto_p(self):
+        x = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+        y = np.array([10, 20, 30, 40, 50, 60, 70, 80, 90, 100])
+        _range = auto_set_range(x, y, _range='auto', auto_p=(1, 99))
+        assert np.array_equal(
+            _range, [np.percentile(x, [1, 99]),
+                     np.percentile(y, [1, 99])])
+
+    def test_2d_partial_auto_p(self):
+        x = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+        y = np.array([10, 20, 30, 40, 50, 60, 70, 80, 90, 100])
+        _range = auto_set_range(x, y, _range=[[1, 4], 'auto'], auto_p=(1, 99))
+        assert np.array_equal(_range, [[1, 4], np.percentile(y, [1, 99])])
+
+    def test_2d_single(self):
+
+        assert np.array_equal(
+            auto_set_range([1], [4], _range=None, auto_p=None),
+            [[0.5, 1.5], [3.5, 4.5]])
+
+    def test_2d_empty(self):
+        assert np.array_equal(auto_set_range([], [], _range=None, auto_p=None),
                               [[0, 1], [0, 1]])
+
+    def test_1d_minmax(self):
+        assert np.array_equal(
+            auto_set_range([1, 2, 3], _range=None, auto_p=None), [1, 3])
+
+    def test_1d_preset(self):
+        assert np.array_equal(
+            auto_set_range([1, 2, 3], _range=[10, 20], auto_p=None), [10, 20])
+
+    def test_3d_minmax(self):
+        assert np.array_equal(
+            auto_set_range([1, 2, 3], [4, 5, 6], [7, 8, 9],
+                           _range=None,
+                           auto_p=None), [[1, 3], [4, 6], [7, 9]])
 
 
 class TestToLittle:
@@ -252,4 +363,3 @@ class TestDeduplicate:
         with pytest.raises(ValueError) as excinfo:
             deduplicate([1., 2., 1., 3.])
             assert 'Input array must be sorted' in str(excinfo.value)
-            

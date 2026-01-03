@@ -714,7 +714,7 @@ def hist2d(x,
     if ax is None:
         ax = pl.gca()
 
-    range = auto_set_range(x, y, range, auto_p)
+    range = auto_set_range(x, y, _range=range, auto_p=auto_p)
 
     # Set up the default plotting arguments.
     if color is None:
