@@ -1,8 +1,11 @@
+import functools
 from typing import Final
 
-import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
+import numpy as np
+from asa.utils import (all_asarray, any_empty, remove_bad,
+                       ensure_parameter_spec, is_empty)
 
 
 def xy2ij_imshow(x, y, img_shape, extent, origin):
@@ -199,3 +202,49 @@ def jitter_data(x, jitter):
         else:
             raise ValueError(f'Invalid jitter type: {jitter[0]}')
     return jitter.jitter(x)
+
+
+def auto_setup_ax(func):
+    """
+    Decorator: Automatically set 'ax' to plt.gca() if it's None.
+    Required signature: def func(..., ax=None)
+    """
+    # Check signature during decoration time (when the script starts)
+    ensure_parameter_spec(func, 'ax', None)
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        if kwargs.get('ax') is None:
+            kwargs['ax'] = plt.gca()
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def prepare_data(*args, arg_names=None, to_transpose=None):
+    """
+    all_asarray + remove_bad + check empty
+    """
+    args = all_asarray(args)
+    args = remove_bad(args, to_transpose=to_transpose)
+
+    if arg_names is None:
+        if any_empty(args):
+            raise ValueError('Some data are empty after removing bad values.')
+    elif len(arg_names) != len(args):
+        raise ValueError(
+            f'Number of {arg_names} does not match the number of data.')
+    else:
+        empty_lst = []
+        for arg, name in zip(args, arg_names):
+            if (arg is not None) and is_empty(arg):
+                empty_lst.append(name)
+        if empty_lst:
+            raise ValueError(
+                f'Some {arg_names} are empty after removing bad values: {empty_lst}.'
+            )
+
+    if len(args) == 1:
+        args = args[0]
+
+    return args
