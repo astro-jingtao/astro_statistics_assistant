@@ -1,14 +1,10 @@
-from typing import cast
-
 import numpy as np
-from matplotlib.axes import Axes
-
-from asa.plot_methods.plot_utils import auto_setup_ax
+import matplotlib.pyplot as plt
 
 
-@auto_setup_ax
 def imshow(X, *, ax=None, mask=None, pmin=None, pmax=None, **kwargs):
-    ax = cast(Axes, ax)
+    if ax is None:
+        ax = plt.gca()
 
     if mask is not None:
         X = X.astype(float).copy()
