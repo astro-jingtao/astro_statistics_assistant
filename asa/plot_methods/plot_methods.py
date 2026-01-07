@@ -1,8 +1,5 @@
-from typing import cast
-
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.axes import Axes
 from matplotlib.scale import scale_factory
 from scipy.stats import gaussian_kde
 from sklearn.metrics import confusion_matrix
@@ -12,7 +9,7 @@ from asa.Bcorner import corner, hist2d, quantile
 from asa.binning_methods import bin_1d, bin_2d
 from asa.correlation_methods import get_correlation_coefficients
 from asa.loess2d import loess_2d_map
-from asa.plot_methods.plot_utils import ColorCycler, auto_setup_ax, jitter_data, prepare_data
+from asa.plot_methods.plot_utils import ColorCycler, jitter_data, prepare_data
 from asa.utils import (auto_set_range, flag_bad, set_default_kwargs)
 
 TREND_QUANTILE_ALIASES = ['q', 'quantile', 'percentile']
@@ -24,7 +21,6 @@ TREMD_STD_MEDIAN_ALIASES = ['std_median']
 trend_color_cycle = ColorCycler()
 
 
-@auto_setup_ax
 def plot_trend(x,
                y,
                *,
@@ -129,7 +125,8 @@ def plot_trend(x,
     - Ensure that the lengths of x, y, and weights are consistent.
     - Custom plotting parameters can be passed through the respective kwargs.
     """
-    ax = cast(Axes, ax)
+    if ax is None:
+        ax = plt.gca()
 
     plot_kwargs = set_default_kwargs(plot_kwargs)
 
@@ -395,7 +392,6 @@ def _trend_interval(ax, x_edges, x_bin, y_bin, statistic, color, plot_kwargs,
 scatter_color_cycle = ColorCycler()
 
 
-@auto_setup_ax
 def plot_scatter(x,
                  y,
                  *,
@@ -425,7 +421,8 @@ def plot_scatter(x,
 
     # TODO: line ordered
     # TODO: z_range, automatically adjust?
-    ax = cast(Axes, ax)
+    if ax is None:
+        ax = plt.gca()
 
     x, y, z, weights, xerr, yerr = prepare_data(
         x,
@@ -712,7 +709,6 @@ def plot_corner(xs,
                   **hist2d_kwargs)
 
 
-@auto_setup_ax
 def plot_contour(x,
                  y,
                  *,
@@ -814,7 +810,8 @@ def plot_contour(x,
         Any additional keyword arguments to pass to the `pcolor` method when
         adding the density colormap.
     """
-    ax = cast(Axes, ax)
+    if ax is None:
+        ax = plt.gca()
 
     hist2d(x,
            y,
@@ -839,7 +836,6 @@ def plot_contour(x,
            pcolor_kwargs=pcolor_kwargs)
 
 
-@auto_setup_ax
 def plot_heatmap(x,
                  y,
                  z,
@@ -860,7 +856,8 @@ def plot_heatmap(x,
     """
     # TODO: z_range
     # TODO: weights
-    ax = cast(Axes, ax)
+    if ax is None:
+        ax = plt.gca()
 
     x, y, z = prepare_data(x, y, z, arg_names=['x', 'y', 'z'])
 
@@ -898,7 +895,6 @@ def plot_heatmap(x,
         return cont
 
 
-@auto_setup_ax
 def plot_sample_to_point(x,
                          y,
                          *,
@@ -939,7 +935,8 @@ def plot_sample_to_point(x,
     - None
 
     """
-    ax = cast(Axes, ax)
+    if ax is None:
+        ax = plt.gca()
 
     x, y = prepare_data(x, y, arg_names=['x', 'y'])
 
@@ -978,7 +975,6 @@ def plot_sample_to_point(x,
 
 # TODO: single err for all
 # TODO: different upper and lower err
-@auto_setup_ax
 def plot_errorbar(x,
                   y,
                   *,
@@ -1013,7 +1009,8 @@ def plot_errorbar(x,
         matplotlib.cm.ScalarMappable
             A ScalarMappable object that can be used to create a colorbar.
     """
-    ax = cast(Axes, ax)
+    if ax is None:
+        ax = plt.gca()
 
     x = np.asarray(x)
     y = np.asarray(y)
@@ -1066,9 +1063,9 @@ def plot_errorbar(x,
     return ax, sm
 
 
-@auto_setup_ax
 def plot_volcano(x_lst, y, *, method='pearsonr', ax=None, **kwargs):
-    ax = cast(Axes, ax)
+    if ax is None:
+        ax = plt.gca()
 
     corr_dict = {'pvalue': [], 'statistic': []}
     for x in x_lst:
@@ -1082,7 +1079,6 @@ def plot_volcano(x_lst, y, *, method='pearsonr', ax=None, **kwargs):
 
 
 # TODO: update it
-@auto_setup_ax
 def plot_confusion_matrix(y_A,
                           y_B,
                           *,
@@ -1111,7 +1107,8 @@ def plot_confusion_matrix(y_A,
     -------
     fig, ax
     """
-    ax = cast(Axes, ax)
+    if ax is None:
+        ax = plt.gca()
 
     cm = confusion_matrix(y_B, y_A)  # 以 B 为“行”，A 为“列”
     cm_joint = cm.astype(float) / cm.sum()  # 总样本归一化

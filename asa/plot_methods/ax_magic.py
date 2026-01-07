@@ -1,32 +1,25 @@
-from typing import cast
-
 import numpy as np
-from matplotlib.axes import Axes
-
-from asa.plot_methods.plot_utils import auto_setup_ax
+import matplotlib.pyplot as plt
 
 
-@auto_setup_ax
 def ax_fill_between(y1, y2, *, ax=None, **kwargs):
-
-    ax = cast(Axes, ax)
+    if ax is None:
+        ax = plt.gca()
 
     this_xlim = ax.get_xlim()
     ax.fill_between(this_xlim, [y1, y1], [y2, y2], **kwargs)
     ax.set_xlim(this_xlim)
 
 
-@auto_setup_ax
 def ax_fill_betweenx(x1, x2, *, ax=None, **kwargs):
-
-    ax = cast(Axes, ax)
+    if ax is None:
+        ax = plt.gca()
 
     this_ylim = ax.get_ylim()
     ax.fill_betweenx(this_ylim, [x1, x1], [x2, x2], **kwargs)
     ax.set_ylim(this_ylim)
 
 
-@auto_setup_ax
 def plot_line(*,
               x=None,
               y=None,
@@ -55,7 +48,8 @@ def plot_line(*,
     Returns:
     - None
     """
-    ax = cast(Axes, ax)
+    if ax is None:
+        ax = plt.gca()
 
     if x is not None:
         ax.axvline(x, **kwargs)
@@ -85,7 +79,6 @@ def plot_line(*,
     raise ValueError("Invalid input")
 
 
-@auto_setup_ax
 def plot_log_line(*,
                   p1=None,
                   p2=None,
@@ -96,7 +89,8 @@ def plot_log_line(*,
                   N=1000,
                   is_input_log=True,
                   **kwargs):
-    ax = cast(Axes, ax)
+    if ax is None:
+        ax = plt.gca()
 
     if not is_input_log:
         p1 = (np.log10(p1[0]), np.log10(p1[1])) if p1 is not None else None
